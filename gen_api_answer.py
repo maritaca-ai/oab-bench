@@ -20,7 +20,6 @@ from fastchat.llm_judge.common import (
     chat_completion_anthropic,
     chat_completion_palm,
 )
-from fastchat.llm_judge.gen_model_answer import reorg_answer_file
 from fastchat.model.model_adapter import get_conversation_template, ANTHROPIC_MODEL_LIST
 
 
@@ -75,6 +74,20 @@ def get_answer(
     os.makedirs(os.path.dirname(answer_file), exist_ok=True)
     with open(answer_file, "a") as fout:
         fout.write(json.dumps(ans) + "\n")
+
+
+def reorg_answer_file(answer_file):
+    """Sort by question id and de-duplication"""
+    answers = {}
+    with open(answer_file, "r") as fin:
+        for l in fin:
+            qid = json.loads(l)["question_id"]
+            answers[qid] = l
+
+    qids = sorted(list(answers.keys()))
+    with open(answer_file, "w") as fout:
+        for qid in qids:
+            fout.write(answers[qid])
 
 
 if __name__ == "__main__":
