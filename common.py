@@ -14,9 +14,7 @@ from typing import Optional
 import openai
 import anthropic
 
-from fastchat.model.model_adapter import (
-    get_conversation_template,
-)
+from conversation import gen_conv_template as get_conversation_template
 
 # API setting constants
 API_MAX_RETRY = 16
@@ -156,7 +154,7 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False):
     rating = -1
 
     system_prompt = judge.prompt_template["system_prompt"]
-    conv = get_conversation_template(model)
+    conv = get_conversation_template("chatgpt")
     conv.set_system_message(system_prompt)
     conv.append_message(conv.roles[0], user_prompt)
     conv.append_message(conv.roles[1], None)
@@ -267,7 +265,7 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
 
     winner = "error"
 
-    conv = get_conversation_template(model)
+    conv = get_conversation_template("chatgpt")
     conv.append_message(conv.roles[0], user_prompt)
     conv.append_message(conv.roles[1], None)
 

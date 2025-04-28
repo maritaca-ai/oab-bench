@@ -17,7 +17,7 @@ from common import (
     temperature_config,
     chat_completion_openai,
 )
-from fastchat.model.model_adapter import get_conversation_template
+from conversation import gen_conv_template as get_conversation_template
 
 
 def get_answer(
@@ -38,7 +38,7 @@ def get_answer(
 
     choices = []
     for i in range(num_choices):
-        conv = get_conversation_template(model)
+        conv = get_conversation_template("chatgpt")
 
         turns = []
         for j in range(len(question["turns"])):
