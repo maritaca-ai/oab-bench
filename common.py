@@ -435,13 +435,20 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None):
     for _ in range(API_MAX_RETRY):
         try:
             messages = conv.to_openai_api_messages()
-            response = openai.ChatCompletion.create(
-                model=model,
-                messages=messages,
-                n=1,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+
+            common_args = {
+                'model': model,
+                'messages': messages,
+                'n': 1,
+                'temperature': temperature,
+            }
+            
+            # Use the 'max_completion_tokens' when the model starts with "o1"
+            if any(model.startswith(m) for m in ["o1", "o3"]):
+                response = openai.ChatCompletion.create(**common_args, max_completion_tokens=max_tokens)
+            else:
+                response = openai.ChatCompletion.create(**common_args, max_tokens=max_tokens)
+
             output = response["choices"][0]["message"]["content"]
             break
         except openai.error.OpenAIError as e:
