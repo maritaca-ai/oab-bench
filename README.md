@@ -20,10 +20,16 @@ OAB-Bench is a benchmark for evaluating Large Language Models (LLMs) on legal wr
 
 ## Installation
 
-The codebase is based on [FastChat](https://github.com/lm-sys/FastChat) and requires similar dependencies:
+The codebase is based on [FastChat](https://github.com/lm-sys/FastChat) and can be installed via pip:
 
 ```bash
-pip3 install "fschat[model_worker,webui]"
+# Install from GitHub
+pip install git+https://github.com/maritaca-ai/oab-bench.git
+
+# Or install from local source
+git clone https://github.com/maritaca-ai/oab-bench.git
+cd oab-bench
+pip install -e .
 ```
 
 ## Usage
