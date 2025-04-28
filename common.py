@@ -40,8 +40,8 @@ OAB_CATS = ["39_direito_administrativo", "39_direito_do_trabalho",
 # Extract scores from judgments
 two_score_pattern = re.compile("\[\[(\d+\.?\d*),\s?(\d+\.?\d*)\]\]")
 two_score_pattern_backup = re.compile("\[(\d+\.?\d*),\s?(\d+\.?\d*)\]")
-one_score_pattern = re.compile("\[\[(\d+\.?\d*)\]\]")
-one_score_pattern_backup = re.compile("\[(\d+\.?\d*)\]")
+one_score_pattern = re.compile("\[\[(\d+[.,]?\d*)\]\]")
+one_score_pattern_backup = re.compile("\[(\d+[,.]?\d*)\]")
 
 # Sampling temperature configs for
 temperature_config = {
