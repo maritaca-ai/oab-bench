@@ -126,7 +126,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     question_file = f"data/{args.bench_name}/question.jsonl"
-    questions = load_questions(question_file, args.question_begin, args.question_end, args.openai_api_base, args.openai_api_key_env)
+    questions = load_questions(question_file, args.question_begin, args.question_end)
 
     if args.answer_file:
         answer_file = args.answer_file
@@ -144,6 +144,8 @@ if __name__ == "__main__":
                 args.num_choices,
                 args.max_tokens,
                 answer_file,
+                args.openai_api_base,
+                args.openai_key_env,
             )
             futures.append(future)
 
