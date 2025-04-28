@@ -22,7 +22,7 @@ from conversation import get_conv_template as get_conversation_template
 
 def get_answer(
     question: dict, model: str, num_choices: int, max_tokens: int, answer_file: str,
-    api_key: str = None, api_base: str = None,
+    api_base: str = None, api_key: str = None,
 ):
     assert (
         args.force_temperature is not None and "required_temperature" in question.keys()
@@ -125,8 +125,17 @@ if __name__ == "__main__":
     parser.add_argument("--openai-key-env", type=str, default=None)
     args = parser.parse_args()
 
+    api_key = None
+    if args.openai_key_env is not None:
+        api_key = os.environ[args.openai_key_env]
+
     question_file = f"data/{args.bench_name}/question.jsonl"
     questions = load_questions(question_file, args.question_begin, args.question_end)
+
+    # Exams: if the question has a statement, add it as a prefix in the first turn
+    for q in questions:
+        if 'statement' in q:
+            q['turns'][0] = q['statement'] + '\n' + q['turns'][0]
 
     if args.answer_file:
         answer_file = args.answer_file
@@ -144,8 +153,8 @@ if __name__ == "__main__":
                 args.num_choices,
                 args.max_tokens,
                 answer_file,
-                args.openai_api_base,
-                args.openai_key_env,
+                api_base=args.openai_api_base,
+                api_key=api_key,
             )
             futures.append(future)
 
