@@ -3,6 +3,7 @@ Usage:
 python3 show_result.py --mode [single|pairwise-baseline|pairwise-all]
 """
 import argparse
+from collections import defaultdict
 import pandas as pd
 
 
@@ -16,6 +17,76 @@ def display_result_single(args):
 
     print(f"Input file: {input_file}")
     df_all = pd.read_json(input_file, lines=True)
+
+    if args.bench_name == 'oab_bench':
+        # for each question, sum the scores of all subquestions
+        df_all = df_all.groupby(['question_id', 'model'], as_index=False)['score'].sum()
+        
+        # extract the exam identifier from the question_id
+        df_all['exam'] = df_all['question_id'].apply(lambda x: '_'.join(x.split('_')[:-2]))
+        
+        # create dictionary to aggregate scores
+        agg_dict = {
+            'score': 'sum',  # sum total (overall)
+        }
+        
+        # add columns for each individual question
+        question_ids = df_all['question_id'].unique()
+        for qid in question_ids:
+            df_all[f'q{qid}_score'] = df_all.apply(
+                lambda row: row['score'] if row['question_id'] == qid else 0,
+                axis=1
+            )
+            agg_dict[f'q{qid}_score'] = 'sum'
+        
+        # group by model to have both overall and individual questions
+        df_all = df_all.groupby(['model'], as_index=False).agg(agg_dict)
+        df_all["turn"] = 1
+
+        # calculate and display means by model, separated by exam
+        print("\n=== Scores by Exam ===")
+        
+        # identify all unique exams
+        all_exams = sorted(set('_'.join(qid.split('_')[:-2]) for qid in question_ids))
+        
+        # Initialize a dictionary to count approved exams per model
+        approved_exams = defaultdict(int)
+        
+        # Create a DataFrame for exam scores
+        exam_scores = pd.DataFrame(index=all_exams)
+        
+        for exam in all_exams:
+            print(f"\n--- {exam} ---")
+            exam_questions = [qid for qid in question_ids if exam in qid]
+            
+            means_by_model = df_all.groupby('model').agg({
+                **{f'q{qid}_score': 'first' for qid in exam_questions}
+            })
+            
+            # calculate the total only for the questions of this exam
+            means_by_model['total'] = means_by_model[[f'q{qid}_score' for qid in exam_questions]].sum(axis=1)
+            
+            # rename columns for better understanding
+            means_by_model = means_by_model.rename(columns={
+                **{f'q{qid}_score': f'questao_{qid.split("_")[-1]}' for qid in exam_questions}
+            })
+            print(means_by_model.round(4).sort_values(by='total', ascending=False))
+            
+            # Add total scores to exam_scores DataFrame
+            # exam_scores[means_by_model.index] = means_by_model['total']
+            # Fix: Use proper column assignment
+            for model in means_by_model.index:
+                exam_scores.loc[exam, model] = means_by_model.loc[model, 'total']
+            
+            # Count approved exams (score >= 6.0) for each model
+            for model, row in means_by_model.iterrows():
+                if row['total'] >= 6.0:
+                    approved_exams[model] += 1
+        
+        print("\n=== Number of Approved Exams per Model (score >= 6.0) ===")
+        for model, count in sorted(approved_exams.items(), key=lambda x: x[1], reverse=True):
+            print(f"{model}: {count}/{len(all_exams)} exams")
+    
     df = df_all[["model", "score", "turn"]]
     df = df[df["score"] != -1]
 
