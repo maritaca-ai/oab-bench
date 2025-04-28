@@ -9,22 +9,20 @@ import os
 import time
 import concurrent.futures
 
-import openai
 import shortuuid
 import tqdm
 
-from fastchat.llm_judge.common import (
+from common import (
     load_questions,
     temperature_config,
     chat_completion_openai,
-    chat_completion_anthropic,
-    chat_completion_palm,
 )
-from fastchat.model.model_adapter import get_conversation_template, ANTHROPIC_MODEL_LIST
+from fastchat.model.model_adapter import get_conversation_template
 
 
 def get_answer(
-    question: dict, model: str, num_choices: int, max_tokens: int, answer_file: str
+    question: dict, model: str, num_choices: int, max_tokens: int, answer_file: str,
+    api_key: str = None, api_base: str = None,
 ):
     assert (
         args.force_temperature is not None and "required_temperature" in question.keys()
@@ -39,7 +37,6 @@ def get_answer(
         temperature = 0.7
 
     choices = []
-    chat_state = None  # for palm-2 model
     for i in range(num_choices):
         conv = get_conversation_template(model)
 
@@ -48,15 +45,13 @@ def get_answer(
             conv.append_message(conv.roles[0], question["turns"][j])
             conv.append_message(conv.roles[1], None)
 
-            if model in ANTHROPIC_MODEL_LIST:
-                output = chat_completion_anthropic(model, conv, temperature, max_tokens)
-            elif model == "palm-2-chat-bison-001":
-                chat_state, output = chat_completion_palm(
-                    chat_state, model, conv, temperature, max_tokens
-                )
-            else:
-                output = chat_completion_openai(model, conv, temperature, max_tokens)
-
+            api_dict = {}
+            if api_key is not None:
+                api_dict["api_key"] = api_key
+            if api_base is not None:
+                api_dict["api_base"] = api_base
+                
+            output = chat_completion_openai(model, conv, temperature, max_tokens, api_dict)
             conv.update_last_message(output)
             turns.append(output)
 
@@ -130,13 +125,8 @@ if __name__ == "__main__":
     parser.add_argument("--openai-key-env", type=str, default=None)
     args = parser.parse_args()
 
-    if args.openai_api_base is not None:
-        openai.api_base = args.openai_api_base
-    if args.openai_key_env is not None:
-        openai.api_key = os.environ[args.openai_key_env]
-
     question_file = f"data/{args.bench_name}/question.jsonl"
-    questions = load_questions(question_file, args.question_begin, args.question_end)
+    questions = load_questions(question_file, args.question_begin, args.question_end, args.openai_api_base, args.openai_api_key_env)
 
     if args.answer_file:
         answer_file = args.answer_file
