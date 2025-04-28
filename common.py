@@ -14,7 +14,7 @@ from typing import Optional
 import openai
 import anthropic
 
-from conversation import gen_conv_template as get_conversation_template
+from conversation import get_conv_template as get_conversation_template
 
 # API setting constants
 API_MAX_RETRY = 16

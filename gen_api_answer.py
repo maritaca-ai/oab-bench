@@ -17,7 +17,7 @@ from common import (
     temperature_config,
     chat_completion_openai,
 )
-from conversation import gen_conv_template as get_conversation_template
+from conversation import get_conv_template as get_conversation_template
 
 
 def get_answer(
