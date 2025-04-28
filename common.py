@@ -147,6 +147,12 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False):
         if multi_turn:
             kwargs["ref_answer_2"] = ref_answer["choices"][0]["turns"][1]
 
+    # for exams
+    if question.get("values", None):
+        index = 1 if multi_turn else 0
+        kwargs["value"] = question["values"][index]
+        kwargs["value_half"] = question["values"][index] / 2
+
     if multi_turn:
         user_prompt = judge.prompt_template["prompt_template"].format(
             question_1=question["turns"][0],
