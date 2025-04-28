@@ -26,6 +26,17 @@ TIE_DELTA = 0.1
 # Categories that need reference answers
 NEED_REF_CATS = ["math", "reasoning", "coding", "arena-hard-200"]
 
+# Categories specific for oab_bench
+OAB_CATS = ["39_direito_administrativo", "39_direito_do_trabalho", 
+    "39_direito_civil", "39_direito_empresarial", "39_direito_penal", 
+    "39_direito_tributario", "39_direito_constitucional",
+    "40_direito_administrativo", "40_direito_do_trabalho",
+    "40_direito_civil", "40_direito_empresarial", "40_direito_penal", 
+    "40_direito_tributario", "40_direito_constitucional",
+    "41_direito_administrativo", "41_direito_do_trabalho",
+    "41_direito_civil", "41_direito_empresarial", "41_direito_penal", 
+    "41_direito_tributario", "41_direito_constitucional"]
+
 # Extract scores from judgments
 two_score_pattern = re.compile("\[\[(\d+\.?\d*),\s?(\d+\.?\d*)\]\]")
 two_score_pattern_backup = re.compile("\[(\d+\.?\d*),\s?(\d+\.?\d*)\]")
