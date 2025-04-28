@@ -67,8 +67,8 @@ def get_answer(
     }
 
     os.makedirs(os.path.dirname(answer_file), exist_ok=True)
-    with open(answer_file, "a") as fout:
-        fout.write(json.dumps(ans) + "\n")
+    with open(answer_file, "a", encoding="utf-8") as fout:
+        fout.write(json.dumps(ans, ensure_ascii=False) + "\n")
 
 
 def reorg_answer_file(answer_file):
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     if args.answer_file:
         answer_file = args.answer_file
     else:
-        answer_file = f"data/{args.bench_name}/model_answer/{args.model}.jsonl"
+        answer_file = f"data/{args.bench_name}/model_answer/{args.model.split('/')[-1]}.jsonl"
     print(f"Output to {answer_file}")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.parallel) as executor:
