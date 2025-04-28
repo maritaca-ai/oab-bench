@@ -21,6 +21,7 @@ from common import (
     MatchPair,
     MatchSingle,
     NEED_REF_CATS,
+    OAB_CATS,
 )
 
 
@@ -147,6 +148,13 @@ def make_judge_pairwise(judge_model, judge_prompts):
         ref_based=True,
         multi_turn=True,
     )
+    judges["oab"] = Judge(judge_model, judge_prompts.get("single-oab-v1", {}), ref_based=True)
+    judges["oab-mt"] = Judge(
+        judge_model,
+        judge_prompts.get("single-oab-v1-multi-turn", {}),
+        ref_based=True,
+        multi_turn=True
+    )
     return judges
 
 
@@ -162,6 +170,13 @@ def make_judge_single(judge_model, judge_prompts):
         judge_prompts["single-math-v1-multi-turn"],
         ref_based=True,
         multi_turn=True,
+    )
+    judges["oab"] = Judge(judge_model, judge_prompts.get("single-oab-v1", {}), ref_based=True)
+    judges["oab-mt"] = Judge(
+        judge_model,
+        judge_prompts.get("single-oab-v1-multi-turn", {}),
+        ref_based=True,
+        multi_turn=True
     )
     return judges
 
@@ -216,6 +231,11 @@ if __name__ == "__main__":
     # Load questions
     questions = load_questions(question_file, None, None)
 
+    # Exams: if the question has a statement, add it as a prefix in the first turn
+    for q in questions:
+        if 'statement' in q:
+            q['turns'][0] = q['statement'] + '\n' + q['turns'][0]
+
     # Load answers
     model_answers = load_model_answers(answer_dir)
     ref_answers = load_model_answers(ref_answer_dir)
@@ -254,8 +274,9 @@ if __name__ == "__main__":
 
     check_data(questions, model_answers, ref_answers, models, judges)
 
-    question_math = [q for q in questions if q["category"] in NEED_REF_CATS]
-    question_default = [q for q in questions if q["category"] not in NEED_REF_CATS]
+    question_math = [q for q in questions if q["category"] in NEED_REF_CATS and q["category"] not in OAB_CATS]
+    question_default = [q for q in questions if q["category"] not in NEED_REF_CATS and q["category"] not in OAB_CATS]
+    question_oab = [q for q in questions if q["category"] in OAB_CATS]
 
     # Make matches
     matches = []
@@ -283,6 +304,23 @@ if __name__ == "__main__":
         models,
         model_answers,
         judges["math-mt"],
+        baseline_model,
+        ref_answers,
+        multi_turn=True,
+    )
+    matches += make_match_func(
+        question_oab,
+        models,
+        model_answers,
+        judges["oab"],
+        baseline_model,
+        ref_answers,
+    )
+    matches += make_match_func(
+        question_oab,
+        models,
+        model_answers,
+        judges["oab-mt"],
         baseline_model,
         ref_answers,
         multi_turn=True,
