@@ -198,7 +198,7 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False):
             match = re.search(one_score_pattern_backup, judgment)
 
         if match:
-            rating = ast.literal_eval(match.groups()[0])
+            rating = ast.literal_eval(match.groups()[0].replace(',', '.'))
         else:
             rating = -1
     else:
