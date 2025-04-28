@@ -161,8 +161,19 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False):
     conv.append_message(conv.roles[0], user_prompt)
     conv.append_message(conv.roles[1], None)
 
-    if any(model.startswith(m) for m in ["gpt-4", "o1", "o3"]):
+    if model.startswith("gpt-"):
         judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048)
+    elif any(model.startswith(m) for m in ["o1", "o3"]):
+        # With o1 models and newer, developer messages replace the previous system messages.
+        conv.messages[0][0] = "developer"
+        # temperature=1 is the only value supported
+        # use large max_tokens for "thinking"
+        judgment = chat_completion_openai(model, conv, temperature=1, max_tokens=20000)
+    elif model.startswith("deepseek"):
+        # temperature=1 is the only value supported
+        # use large max_tokens for "thinking"
+        judgment = chat_completion_openai(model, conv, temperature=1, max_tokens=8192,
+            api_dict={"api_base": "https://api.deepseek.com", "api_key": os.environ["DEEPSEEK_API_KEY"]})
     else:
         raise ValueError(f"Invalid judge model name: {model}")
 
@@ -260,9 +271,19 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
     conv.append_message(conv.roles[0], user_prompt)
     conv.append_message(conv.roles[1], None)
 
-    if any(model.startswith(m) for m in ["gpt-4", "o1", "o3"]):
-        conv.set_system_message(system_prompt)
+    if model.startswith("gpt-"):
         judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048)
+    elif any(model.startswith(m) for m in ["o1", "o3"]):
+        # With o1 models and newer, developer messages replace the previous system messages.
+        conv.messages[0][0] = "developer"
+        # temperature=1 is the only value supported
+        # use large max_tokens for "thinking"
+        judgment = chat_completion_openai(model, conv, temperature=1, max_tokens=20000)
+    elif model.startswith("deepseek"):
+        # temperature=1 is the only value supported
+        # use large max_tokens for "thinking"
+        judgment = chat_completion_openai(model, conv, temperature=1, max_tokens=8192,
+            api_dict={"api_base": "https://api.deepseek.com", "api_key": os.environ["DEEPSEEK_API_KEY"]})
     else:
         raise ValueError(f"Invalid judge model name: {model}")
 
