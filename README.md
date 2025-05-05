@@ -1,5 +1,5 @@
 # OAB-Bench
-| [**Paper**](https://arxiv.org/abs/XXXX.XXXXX) | [**Dataset**](https://huggingface.co/datasets/maritaca-ai/oab-bench) |
+| [**Paper**](https://arxiv.org/abs/2504.21202) | [**Dataset**](https://huggingface.co/datasets/maritaca-ai/oab-bench) |
 
 OAB-Bench is a benchmark for evaluating Large Language Models (LLMs) on legal writing tasks, specifically designed for the Brazilian Bar Examination (OAB). The benchmark comprises 105 questions across seven areas of law from recent editions of the exam.
 
