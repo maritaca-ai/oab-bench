@@ -90,7 +90,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--bench-name",
         type=str,
-        default="mt_bench",
+        default="oab_bench",
         help="The name of the benchmark question set.",
     )
     parser.add_argument("--answer-file", type=str, help="The output answer file.")
@@ -121,13 +121,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--parallel", type=int, default=1, help="The number of concurrent API calls."
     )
-    parser.add_argument("--openai-api-base", type=str, default=None)
-    parser.add_argument("--openai-key-env", type=str, default=None)
+    parser.add_argument("--api-base", type=str, default=None)
+    parser.add_argument("--api-key", type=str, default=None)
     args = parser.parse_args()
-
-    api_key = None
-    if args.openai_key_env is not None:
-        api_key = os.environ[args.openai_key_env]
 
     question_file = f"data/{args.bench_name}/question.jsonl"
     questions = load_questions(question_file, args.question_begin, args.question_end)
@@ -153,8 +149,8 @@ if __name__ == "__main__":
                 args.num_choices,
                 args.max_tokens,
                 answer_file,
-                api_base=args.openai_api_base,
-                api_key=api_key,
+                args.api_base,
+                args.api_key,
             )
             futures.append(future)
 
