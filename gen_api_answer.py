@@ -40,6 +40,10 @@ def get_answer(
     for i in range(num_choices):
         conv = get_conversation_template("chatgpt")
 
+        # Set system message if the question has it
+        if "system" in question:
+            conv.set_system_message(question["system"])
+
         turns = []
         for j in range(len(question["turns"])):
             conv.append_message(conv.roles[0], question["turns"][j])

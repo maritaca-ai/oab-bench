@@ -1073,7 +1073,7 @@ register_conv_template(
 register_conv_template(
     Conversation(
         name="chatgpt",
-        system_message="You are a helpful assistant.",
+        system_message="Você é um assistente útil.",
         roles=("user", "assistant"),
         sep_style=SeparatorStyle.DEFAULT,
         sep=None,
