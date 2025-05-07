@@ -38,21 +38,20 @@ The benchmark evaluation pipeline consists of three main scripts:
 
 1. Generate model responses for a specific model:
 ```bash
-python gen_api_answer.py 
-    --bench-name oab_bench 
-    --model sabia-3-2024-12-11
-    --openai-api-base "https://chat.maritaca.ai/api" 
-    --openai-key-env MARITACA_API_KEY
+python3 -m gen_api_answer.py \
+    --bench-name oab_bench \
+    --model sabia-3-2024-12-11 \
+    --openai-api-base "https://chat.maritaca.ai/api" \
+    --openai-key-env MARITACA_API_KEY \
     --parallel 10
 ```
 
 2. Generate automated evaluations using an LLM judge:
 ```bash
-python gen_judgment.py 
-    --bench-name oab_bench 
-    --judge-model o1-2024-12-17 
-    --mode single
-    --model-list sabia-3-2024-12-11
+python3 -m gen_judgment.py \
+    --bench-name oab_bench \
+    --judge-model o1-2024-12-17 \
+    --model-list sabia-3-2024-12-11 \
     --parallel 10
 ```
 
