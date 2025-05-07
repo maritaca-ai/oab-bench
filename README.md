@@ -40,7 +40,7 @@ The benchmark evaluation pipeline consists of three main scripts:
 ```bash
 export MARITACA_API_KEY="your-api-key-here"
 
-python3 -m gen_api_answer.py \
+python3 -m gen_api_answer \
     --model sabia-3-2024-12-11 \
     --api-base "https://chat.maritaca.ai/api" \
     --api-key $MARITACA_API_KEY \
@@ -51,7 +51,7 @@ python3 -m gen_api_answer.py \
 ```bash
 export OPENAI_API_KEY="your-api-key-here"
 
-python3 -m gen_judgment.py \
+python3 -m gen_judgment \
     --judge-model o1-2024-12-17 \
     --model-list sabia-3-2024-12-11 \
     --parallel 10
