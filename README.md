@@ -70,7 +70,7 @@ Our evaluation of four LLMs on OAB-Bench shows:
 | --- | --- | --- | --- |
 | o3 | 8.88 | 100% | Administrative Law (9.60) |
 | Claude-3.5 Sonnet | 7.93 | 100% | Constitutional Law (8.43) |
-| Sabiá-3.1 | 6.55 | 76% | Civil Law (7.88) |
+| Sabiá-3.1 | 7.10 | 76% | Civil Law (7.88) |
 | GPT-4o | 6.87 | 86% | Civil Law (7.42) |
 | Sabiá-3 | 6.55 | 71% | Civil Law (7.40) |
 | Qwen2.5-72B | 5.21 | 24% | Civil Law (5.48) |
