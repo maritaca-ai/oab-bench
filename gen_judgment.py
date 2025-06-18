@@ -8,6 +8,7 @@ import json
 
 import numpy as np
 from tqdm import tqdm
+from openai import OpenAI
 
 from common import (
     load_questions,
@@ -222,7 +223,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--first-n", type=int, help="A debug option. Only run the first `n` judgments."
     )
+    parser.add_argument("--api-base", type=str, default="https://api.openai.com/v1")
+    parser.add_argument("--api-key", type=str, required=True)
     args = parser.parse_args()
+
+    openai_client = OpenAI(api_key=args.api_key, base_url=args.api_base)
 
     question_file = f"data/{args.bench_name}/question.jsonl"
     answer_dir = f"data/{args.bench_name}/model_answer"
@@ -344,11 +349,11 @@ if __name__ == "__main__":
     # Play matches
     if args.parallel == 1:
         for match in tqdm(matches):
-            play_a_match_func(match, output_file=output_file)
+            play_a_match_func(match, output_file=output_file, client=openai_client)
     else:
 
         def play_a_match_wrapper(match):
-            play_a_match_func(match, output_file=output_file)
+            play_a_match_func(match, output_file=output_file, client=openai_client)
 
         np.random.seed(0)
         np.random.shuffle(matches)

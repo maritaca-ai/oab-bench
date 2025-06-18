@@ -12,6 +12,7 @@ import time
 from typing import Optional
 
 import openai
+from openai import OpenAI, AzureOpenAI
 import anthropic
 
 from conversation import get_conv_template as get_conversation_template
@@ -139,7 +140,7 @@ def load_judge_prompts(prompt_file: str):
     return prompts
 
 
-def run_judge_single(question, answer, judge, ref_answer, multi_turn=False):
+def run_judge_single(question, answer, judge, ref_answer, multi_turn=False, client=None):
     kwargs = {}
     model = judge.model_name
     if ref_answer is not None:
@@ -177,18 +178,24 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False):
     conv.append_message(conv.roles[1], None)
 
     if model.startswith("gpt-"):
-        judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048)
+        judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048, client=client)
     elif any(model.startswith(m) for m in ["o1", "o3"]):
         # With o1 models and newer, developer messages replace the previous system messages.
         conv.messages[0][0] = "developer"
         # temperature=1 is the only value supported
         # use large max_tokens for "thinking"
-        judgment = chat_completion_openai(model, conv, temperature=1, max_tokens=20000)
+        judgment = chat_completion_openai(model, conv, temperature=1, max_tokens=20000, client=client)
     elif model.startswith("deepseek"):
         # temperature=1 is the only value supported
         # use large max_tokens for "thinking"
-        judgment = chat_completion_openai(model, conv, temperature=1, max_tokens=8192,
-            api_dict={"api_base": "https://api.deepseek.com", "api_key": os.environ["DEEPSEEK_API_KEY"]})
+        judgment = chat_completion_openai(
+            model,
+            conv,
+            temperature=1,
+            max_tokens=8192,
+            api_dict={"api_base": "https://api.deepseek.com", "api_key": os.environ["DEEPSEEK_API_KEY"]},
+            client=client,
+        )
     else:
         raise ValueError(f"Invalid judge model name: {model}")
 
@@ -209,7 +216,7 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False):
     return rating, user_prompt, judgment
 
 
-def play_a_match_single(match: MatchSingle, output_file: str):
+def play_a_match_single(match: MatchSingle, output_file: str, client=None):
     question, model, answer, judge, ref_answer, multi_turn = (
         match.question,
         match.model,
@@ -221,7 +228,7 @@ def play_a_match_single(match: MatchSingle, output_file: str):
 
     if judge.prompt_template["type"] == "single":
         score, user_prompt, judgment = run_judge_single(
-            question, answer, judge, ref_answer, multi_turn=multi_turn
+            question, answer, judge, ref_answer, multi_turn=multi_turn, client=client
         )
 
         question_id = question["question_id"]
@@ -252,7 +259,7 @@ def play_a_match_single(match: MatchSingle, output_file: str):
     return result
 
 
-def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=False):
+def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=False, client=None):
     kwargs = {}
     model = judge.model_name
     if ref_answer is not None:
@@ -287,18 +294,24 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
     conv.append_message(conv.roles[1], None)
 
     if model.startswith("gpt-"):
-        judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048)
+        judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048, client=client)
     elif any(model.startswith(m) for m in ["o1", "o3"]):
         # With o1 models and newer, developer messages replace the previous system messages.
         conv.messages[0][0] = "developer"
         # temperature=1 is the only value supported
         # use large max_tokens for "thinking"
-        judgment = chat_completion_openai(model, conv, temperature=1, max_tokens=20000)
+        judgment = chat_completion_openai(model, conv, temperature=1, max_tokens=20000, client=client)
     elif model.startswith("deepseek"):
         # temperature=1 is the only value supported
         # use large max_tokens for "thinking"
-        judgment = chat_completion_openai(model, conv, temperature=1, max_tokens=8192,
-            api_dict={"api_base": "https://api.deepseek.com", "api_key": os.environ["DEEPSEEK_API_KEY"]})
+        judgment = chat_completion_openai(
+            model,
+            conv,
+            temperature=1,
+            max_tokens=8192,
+            api_dict={"api_base": "https://api.deepseek.com", "api_key": os.environ["DEEPSEEK_API_KEY"]},
+            client=client,
+        )
     else:
         raise ValueError(f"Invalid judge model name: {model}")
 
@@ -333,7 +346,7 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
     return winner, user_prompt, judgment
 
 
-def play_a_match_pair(match: MatchPair, output_file: str):
+def play_a_match_pair(match: MatchPair, output_file: str, client=None):
     question, model_1, model_2, answer_1, answer_2, judge, ref_answer, multi_turn = (
         match.question,
         match.model_1,
@@ -347,10 +360,10 @@ def play_a_match_pair(match: MatchPair, output_file: str):
 
     if judge.prompt_template["type"] == "pairwise":
         g1_winner, g1_user_prompt, g1_judgment = run_judge_pair(
-            question, answer_1, answer_2, judge, ref_answer, multi_turn=multi_turn
+            question, answer_1, answer_2, judge, ref_answer, multi_turn=multi_turn, client=client
         )
         g2_winner, g2_user_prompt, g2_judgment = run_judge_pair(
-            question, answer_2, answer_1, judge, ref_answer, multi_turn=multi_turn
+            question, answer_2, answer_1, judge, ref_answer, multi_turn=multi_turn, client=client
         )
 
         g1_map = {"A": "model_1", "B": "model_2"}
@@ -382,10 +395,10 @@ def play_a_match_pair(match: MatchPair, output_file: str):
         )
     elif judge.prompt_template["type"] == "single":
         m1_score, m1_user_prompt, m1_judgment = run_judge_single(
-            question, answer_1, judge
+            question, answer_1, judge, client=client, ref_answer=None, multi_turn=False
         )
         m2_score, m2_user_prompt, m2_judgment = run_judge_single(
-            question, answer_2, judge
+            question, answer_2, judge, client=client, ref_answer=None, multi_turn=False
         )
 
         if abs(m1_score - m2_score) <= TIE_DELTA:
@@ -427,10 +440,16 @@ def play_a_match_pair(match: MatchPair, output_file: str):
     return result
 
 
-def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None):
-    if api_dict is not None:
-        openai.api_base = api_dict["api_base"]
-        openai.api_key = api_dict["api_key"]
+def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, client=None):
+    if client is None:
+        if api_dict is not None:
+            client = OpenAI(api_key=api_dict["api_key"], base_url=api_dict["api_base"])
+        else:
+            client = OpenAI()
+    else:
+        if api_dict is not None:
+            client.base_url = api_dict["api_base"]
+            client.api_key = api_dict["api_key"]
     output = API_ERROR_OUTPUT
     for _ in range(API_MAX_RETRY):
         try:
@@ -443,30 +462,35 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None):
                 'temperature': temperature,
             }
             
+            use_google = api_dict is not None and "generativelanguage.googleapis.com" in api_dict.get("api_base", "")
+
             # Use the 'max_completion_tokens' when the model starts with "o1"
             if any(model.startswith(m) for m in ["o1", "o3"]):
-                response = openai.ChatCompletion.create(**common_args, max_completion_tokens=max_tokens)
+                if use_google:
+                    response = client.chat.completions.create(**common_args)
+                else:
+                    response = client.chat.completions.create(**common_args, max_completion_tokens=max_tokens)
             else:
-                response = openai.ChatCompletion.create(**common_args, max_tokens=max_tokens)
+                if use_google:
+                    response = client.chat.completions.create(**common_args)
+                else:
+                    response = client.chat.completions.create(**common_args, max_tokens=max_tokens)
 
             output = response["choices"][0]["message"]["content"]
             break
-        except openai.error.OpenAIError as e:
+        except openai.OpenAIError as e:
             print(type(e), e)
             time.sleep(API_RETRY_SLEEP)
 
     return output
 
 
-def chat_completion_openai_azure(model, conv, temperature, max_tokens, api_dict=None):
-    openai.api_type = "azure"
-    openai.api_version = "2023-07-01-preview"
-    if api_dict is not None:
-        openai.api_base = api_dict["api_base"]
-        openai.api_key = api_dict["api_key"]
-    else:
-        openai.api_base = os.environ["AZURE_OPENAI_ENDPOINT"]
-        openai.api_key = os.environ["AZURE_OPENAI_KEY"]
+def chat_completion_openai_azure(model, conv, temperature, max_tokens, api_dict=None, client=None):
+    if client is None:
+        if api_dict is not None:
+            client = AzureOpenAI(api_key=api_dict["api_key"], azure_endpoint=api_dict["api_base"], api_version="2023-07-01-preview")
+        else:
+            client = AzureOpenAI(api_key=os.environ["AZURE_OPENAI_KEY"], azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"], api_version="2023-07-01-preview")
 
     if "azure-" in model:
         model = model[6:]
@@ -475,8 +499,8 @@ def chat_completion_openai_azure(model, conv, temperature, max_tokens, api_dict=
     for _ in range(API_MAX_RETRY):
         try:
             messages = conv.to_openai_api_messages()
-            response = openai.ChatCompletion.create(
-                engine=model,
+            response = client.chat.completions.create(
+                model=model,
                 messages=messages,
                 n=1,
                 temperature=temperature,
@@ -484,10 +508,10 @@ def chat_completion_openai_azure(model, conv, temperature, max_tokens, api_dict=
             )
             output = response["choices"][0]["message"]["content"]
             break
-        except openai.error.OpenAIError as e:
+        except openai.OpenAIError as e:
             print(type(e), e)
             time.sleep(API_RETRY_SLEEP)
-        except openai.error.InvalidRequestError as e:
+        except openai.BadRequestError as e:
             print(type(e), e)
             break
         except KeyError:

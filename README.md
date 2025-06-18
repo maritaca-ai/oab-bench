@@ -38,22 +38,36 @@ The benchmark evaluation pipeline consists of three main scripts:
 
 1. Generate model responses for a specific model:
 ```bash
-export MARITACA_API_KEY="your-api-key-here"
-
 python3 -m gen_api_answer \
     --model sabia-3-2024-12-11 \
     --api-base "https://chat.maritaca.ai/api" \
-    --api-key $MARITACA_API_KEY \
+    --api-key "your-api-key-here" \
     --parallel 10
+```
+
+Additional examples:
+```bash
+# Using GPT-4o from OpenAI
+python3 -m gen_api_answer \
+    --model gpt-4o \
+    --api-key "your-openai-key" \
+    --parallel 10
+
+# Using Gemini-2.5.flash from Google
+python3 -m gen_api_answer \
+    --model gemini-2.5.flash \
+    --api-base "https://generativelanguage.googleapis.com/v1beta/openai/" \
+    --api-key "your-google-key" \
+    --parallel 10  # Google models ignore --max-tokens
 ```
 
 2. Generate automated evaluations using an LLM judge:
 ```bash
-export OPENAI_API_KEY="your-api-key-here"
-
 python3 -m gen_judgment \
     --judge-model o1-2024-12-17 \
     --model-list sabia-3-2024-12-11 \
+    --api-base "https://api.openai.com/v1" \
+    --api-key "your-openai-key" \
     --parallel 10
 ```
 
