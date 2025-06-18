@@ -478,7 +478,7 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
                 else:
                     response = client.chat.completions.create(**common_args, max_tokens=max_tokens)
 
-            output = response["choices"][0]["message"]["content"]
+            output = response.choices[0].message.content
             break
         except openai.OpenAIError as e:
             print(type(e), e)
@@ -508,7 +508,7 @@ def chat_completion_openai_azure(model, conv, temperature, max_tokens, api_dict=
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            output = response["choices"][0]["message"]["content"]
+            output = response.choices[0].message.content
             break
         except openai.OpenAIError as e:
             print(type(e), e)
