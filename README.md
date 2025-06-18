@@ -37,25 +37,28 @@ pip install -e .
 The benchmark evaluation pipeline consists of three main scripts:
 
 1. Generate model responses for a specific model:
+
+Sabiá-3.1:
 ```bash
 python3 -m gen_api_answer \
-    --model sabia-3-2024-12-11 \
+    --model sabia-3.1-2025-05-08 \
     --api-base "https://chat.maritaca.ai/api" \
     --api-key "your-api-key-here" \
     --parallel 10
 ```
 
-Additional examples:
+GPT-4o:
 ```bash
-# Using GPT-4o from OpenAI
 python3 -m gen_api_answer \
-    --model gpt-4o \
+    --model gpt-4o-2024-08-06 \
     --api-key "your-openai-key" \
     --parallel 10
+```
 
-# Using Gemini-2.5.flash from Google
+Gemini-2.5-flash:
+```bash
 python3 -m gen_api_answer \
-    --model gemini-2.5.flash \
+    --model gemini-2.5-flash \
     --api-base "https://generativelanguage.googleapis.com/v1beta/openai/" \
     --api-key "your-google-key" \
     --parallel 10  # Google models ignore --max-tokens
@@ -82,7 +85,9 @@ Our evaluation of four LLMs on OAB-Bench shows:
 
 | Model | Average Score | Passing Rate | Best Area |
 | --- | --- | --- | --- |
+| gemini-2.5-pro | 9.01 | 100% | ? |
 | o3 | 8.88 | 100% | Administrative Law (9.60) |
+| gemini-2.5-flash | 8.48 | 100% | ? |
 | Claude-3.5 Sonnet | 7.93 | 100% | Constitutional Law (8.43) |
 | Sabiá-3.1 | 7.10 | 76% | Civil Law (7.88) |
 | GPT-4o | 6.87 | 86% | Civil Law (7.42) |
