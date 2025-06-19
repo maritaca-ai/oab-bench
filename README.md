@@ -85,9 +85,9 @@ Our evaluation of four LLMs on OAB-Bench shows:
 
 | Model | Average Score | Passing Rate | Best Area |
 | --- | --- | --- | --- |
-| gemini-2.5-pro | 9.01 | 100% | ? |
+| gemini-2.5-pro | 9.01 | 100% | Civil Law (9.70) |
 | o3 | 8.88 | 100% | Administrative Law (9.60) |
-| gemini-2.5-flash | 8.48 | 100% | ? |
+| gemini-2.5-flash | 8.48 | 100% | Criminal Law (9.15) |
 | Claude-3.5 Sonnet | 7.93 | 100% | Constitutional Law (8.43) |
 | Sabiá-3.1 | 7.10 | 76% | Civil Law (7.88) |
 | GPT-4o | 6.87 | 86% | Civil Law (7.42) |
@@ -96,7 +96,7 @@ Our evaluation of four LLMs on OAB-Bench shows:
 
 The LLM judge (o1) shows strong correlation with human scores when evaluating approved exams, with Mean Absolute Error (MAE) ranging from 0.04 to 0.28 across different law areas.
 
-### Average scores given by different LLMs as judges
+### Average scores given by different LLM judges
 
 | Model | o1 judge | o3 judge | gemini-2.5-pro judge |
 | --- | --- | --- | --- |
