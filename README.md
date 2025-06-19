@@ -98,16 +98,16 @@ The LLM judge (o1) shows strong correlation with human scores when evaluating ap
 
 ### Average scores given by different LLMs as judges
 
-| Model | o1 judge | gemini-2.5-pro judge |
-| --- | --- | --- |
-| gemini-2.5-pro | 9.01 | 8.73 |
-| o3 | 8.88 | 8.52 |
-| gemini-2.5-flash | 8.48 | 8.25 |
-| Claude-3.5 Sonnet | 7.93 | 7.57 |
-| Sabiá-3.1 | 7.10 | 6.85 |
-| GPT-4o | 6.87 | 6.53 |
-| Sabiá-3 | 6.55 | 6.02 |
-| Qwen2.5-72B | 5.21 | 4.63 |
+| Model | o1 judge | o3 judge | gemini-2.5-pro judge |
+| --- | --- | --- | --- |
+| gemini-2.5-pro | 9.01 | 8.75 | 8.73 |
+| o3 | 8.88 | 8.52 | 8.52 |
+| gemini-2.5-flash | 8.48 | 8.22 | 8.25 |
+| Claude-3.5 Sonnet | 7.93 | 7.70 | 7.57 |
+| Sabiá-3.1 | 7.10 | 6.71 | 6.85 |
+| GPT-4o | 6.87 | 6.73 | 6.53 |
+| Sabiá-3 | 6.55 | 6.36 | 6.02 |
+| Qwen2.5-72B | 5.21 | 4.99 | 4.63 |
 
 
 ## Citation
