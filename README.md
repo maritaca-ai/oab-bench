@@ -109,7 +109,7 @@ The LLM judge (o1) shows strong correlation with human scores when evaluating ap
 | Sabiá-3 | 6.55 | 6.36 | 6.02 |
 | Qwen2.5-72B | 5.21 | 4.99 | 4.63 |
 
-The table above presents a comparison of scores given by different judges to various language models. It is observed that for a given model, there is a relatively low variation in scores provided by judges o1, o3, and gemini-2.5-pro. Additionally, all three judges produced the same ranking order for the models.
+The table above presents a comparison of scores given by different judges to various language models. It is observed that for a given model, there is a relatively low variation in scores provided by judges o1, o3, and gemini-2.5-pro. Additionally, all three judges produced (almost) the same ranking order for the models.
 
 The consistency in scores and model ranking across judges suggests that the evaluation criteria are well-defined and that performance differences among models are clear and recognizable, regardless of the judge. This gives us confidence that the applied methodology yields reliable and valid results.
 
