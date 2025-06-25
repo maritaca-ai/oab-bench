@@ -11,6 +11,7 @@ import concurrent.futures
 
 import shortuuid
 import tqdm
+from openai import OpenAI
 
 from common import (
     load_questions,
@@ -22,7 +23,7 @@ from conversation import get_conv_template as get_conversation_template
 
 def get_answer(
     question: dict, model: str, num_choices: int, max_tokens: int, answer_file: str,
-    api_base: str = None, api_key: str = None,
+    api_base: str = None, api_key: str = None, client=None,
 ):
     assert (
         args.force_temperature is not None and "required_temperature" in question.keys()
@@ -55,7 +56,7 @@ def get_answer(
             if api_base is not None:
                 api_dict["api_base"] = api_base
                 
-            output = chat_completion_openai(model, conv, temperature, max_tokens, api_dict)
+            output = chat_completion_openai(model, conv, temperature, max_tokens, api_dict, client)
             conv.update_last_message(output)
             turns.append(output)
 
@@ -129,6 +130,8 @@ if __name__ == "__main__":
     parser.add_argument("--api-key", type=str, default=None)
     args = parser.parse_args()
 
+    openai_client = OpenAI(api_key=args.api_key, base_url=args.api_base) if args.api_key else OpenAI(base_url=args.api_base) if args.api_base else OpenAI()
+
     question_file = f"data/{args.bench_name}/question.jsonl"
     questions = load_questions(question_file, args.question_begin, args.question_end)
 
@@ -155,6 +158,7 @@ if __name__ == "__main__":
                 answer_file,
                 args.api_base,
                 args.api_key,
+                openai_client,
             )
             futures.append(future)
 
