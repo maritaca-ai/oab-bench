@@ -9,7 +9,7 @@ import json
 import os
 import re
 import time
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import openai
 from openai import OpenAI, AzureOpenAI
@@ -104,24 +104,34 @@ def load_questions(question_file: str, begin: Optional[int], end: Optional[int])
     return questions
 
 
-def load_model_answers(answer_dir: str):
-    """Load model answers.
-
-    The return value is a python dict of type:
-    Dict[model_name: str -> Dict[question_id: int -> answer: dict]]
+def load_model_answers(answer_dir: str) -> Dict[str, Dict[int, Dict[str, Any]]]:
     """
-    filenames = glob.glob(os.path.join(answer_dir, "*.jsonl"))
-    filenames.sort()
-    model_answers = {}
+    Load model answers, keeping only the most recent (highest `tstamp`)
+    per `question_id` for each model file found in `answer_dir`.
+
+    Returns
+    -------
+    Dict[str, Dict[str, dict]]
+        Mapping:
+            model_name -> { question_id -> answer_dict (latest by `tstamp`) }
+    """
+    filenames = sorted(glob.glob(os.path.join(answer_dir, "*.jsonl")))
+    model_answers: Dict[str, Dict[str, Dict[str, Any]]] = {}
 
     for filename in filenames:
-        model_name = os.path.basename(filename)[:-6]
-        answer = {}
-        with open(filename) as fin:
+        model_name = os.path.basename(filename)[:-6]  # strip ".jsonl"
+        latest: Dict[str, Dict[str, Any]] = {}
+
+        with open(filename, "r", encoding="utf-8") as fin:
             for line in fin:
-                line = json.loads(line)
-                answer[line["question_id"]] = line
-        model_answers[model_name] = answer
+                entry = json.loads(line)
+                qid = entry["question_id"]
+                # keep entry if it's the first one we see for this qid
+                # OR if its tstamp is newer than the one we have
+                if qid not in latest or entry["tstamp"] > latest[qid]["tstamp"]:
+                    latest[qid] = entry
+
+        model_answers[model_name] = latest
 
     return model_answers
 
