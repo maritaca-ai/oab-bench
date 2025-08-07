@@ -104,7 +104,7 @@ def load_questions(question_file: str, begin: Optional[int], end: Optional[int])
     return questions
 
 
-def load_model_answers(answer_dir: str) -> Dict[str, Dict[int, Dict[str, Any]]]:
+def load_model_answers(answer_dir: str) -> Dict[str, Dict[str, Dict[str, Any]]]:
     """
     Load model answers, keeping only the most recent (highest `tstamp`)
     per `question_id` for each model file found in `answer_dir`.
