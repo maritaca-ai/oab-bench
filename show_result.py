@@ -5,6 +5,53 @@ python3 show_result.py --mode [single|pairwise-baseline|pairwise-all]
 import argparse
 from collections import defaultdict
 import pandas as pd
+import warnings
+
+
+def deduplicate_judgments(df):
+    """
+    Remove duplicate judgments keeping only the last occurrence.
+    Duplicates are identified by question_id, model, and turn.
+    
+    Args:
+        df: DataFrame with model judgments
+        
+    Returns:
+        DataFrame with duplicates removed
+    """
+    # Check for duplicates based on key columns
+    key_cols = ['question_id', 'model', 'turn']
+    
+    # Find duplicates
+    duplicates_mask = df.duplicated(subset=key_cols, keep=False)
+    
+    if duplicates_mask.any():
+        duplicate_count = duplicates_mask.sum()
+        duplicate_groups = df.duplicated(subset=key_cols, keep='last').sum()
+        
+        warnings.warn(
+            f"Found {duplicate_count} duplicate judgments ({duplicate_groups} duplicated entries). "
+            f"Keeping only the last occurrence of each (question_id, model, turn) combination.",
+            UserWarning
+        )
+        
+        # Print details about duplicates for debugging
+        print(f"\n=== Duplicate Detection ===")
+        print(f"Total duplicate entries found: {duplicate_count}")
+        print(f"Unique combinations with duplicates: {duplicate_groups}")
+        
+        # Show some examples of duplicates
+        duplicate_examples = df[duplicates_mask].groupby(key_cols).size()
+        print(f"\nExamples of duplicate combinations:")
+        for (qid, model, turn), count in duplicate_examples.head(10).items():
+            print(f"  {qid}, {model}, turn {turn}: {count} occurrences")
+        if len(duplicate_examples) > 10:
+            print(f"  ... and {len(duplicate_examples) - 10} more")
+    
+    # Keep only the last occurrence of each duplicate
+    df_deduped = df.drop_duplicates(subset=key_cols, keep='last')
+    
+    return df_deduped
 
 
 def display_result_single(args):
@@ -17,6 +64,9 @@ def display_result_single(args):
 
     print(f"Input file: {input_file}")
     df_all = pd.read_json(input_file, lines=True)
+    
+    # Remove duplicates keeping only the last occurrence
+    df_all = deduplicate_judgments(df_all)
 
     if args.bench_name == 'oab_bench':
         # for each question, sum the scores of all subquestions
@@ -107,6 +157,9 @@ def display_result_pairwise(args):
 
     print(f"Input file: {input_file}")
     df_all = pd.read_json(input_file, lines=True)
+    
+    # Remove duplicates keeping only the last occurrence
+    df_all = deduplicate_judgments(df_all)
     df_all = df_all[(df_all["g1_winner"] != "error") & (df_all["g2_winner"] != "error")]
 
     model_list = (
