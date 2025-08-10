@@ -44,7 +44,8 @@ python3 -m gen_api_answer \
     --model sabia-3.1-2025-05-08 \
     --api-base "https://chat.maritaca.ai/api" \
     --api-key "your-api-key-here" \
-    --parallel 10
+    --parallel 10 \
+    --max-tokens 24000
 ```
 
 GPT-4o:
@@ -52,7 +53,8 @@ GPT-4o:
 python3 -m gen_api_answer \
     --model gpt-4o-2024-08-06 \
     --api-key "your-openai-key" \
-    --parallel 10
+    --parallel 10 \
+    --max-tokens 24000
 ```
 
 Gemini-2.5-flash:
