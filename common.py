@@ -463,7 +463,8 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
                 'n': 1,
                 'temperature': temperature,
             }
-                        is_google_api = api_dict is not None and "generativelanguage.googleapis.com" in api_dict.get("api_base", "")
+            
+            is_google_api = api_dict is not None and "generativelanguage.googleapis.com" in api_dict.get("api_base", "")
 
             # Use the 'max_completion_tokens' when the model starts with "o1"
             if any(model.startswith(m) for m in ["o1", "o3"]):
