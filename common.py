@@ -445,13 +445,15 @@ def play_a_match_pair(match: MatchPair, output_file: str, client=None):
 def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, client=None):
     if client is None:
         if api_dict is not None:
-            client = OpenAI(api_key=api_dict["api_key"], base_url=api_dict["api_base"])
+            client = OpenAI(**api_dict)
         else:
             client = OpenAI()
     else:
         if api_dict is not None:
-            client.base_url = api_dict["api_base"]
-            client.api_key = api_dict["api_key"]
+            if "api_base" in api_dict:
+                client.base_url = api_dict["api_base"]
+            if "api_key" in api_dict:
+                client.api_key = api_dict["api_key"]
     output = API_ERROR_OUTPUT
     for _ in range(API_MAX_RETRY):
         try:
