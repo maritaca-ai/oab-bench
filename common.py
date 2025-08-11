@@ -464,19 +464,18 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
                 'temperature': temperature,
             }
             
-            use_google = api_dict is not None and "generativelanguage.googleapis.com" in api_dict.get("api_base", "")
+            is_google_api = api_dict is not None and "generativelanguage.googleapis.com" in api_dict.get("api_base", "")
 
             # Use the 'max_completion_tokens' when the model starts with "o1"
             if any(model.startswith(m) for m in ["o1", "o3"]):
-                if use_google:
-                    response = client.chat.completions.create(**common_args)
-                else:
-                    response = client.chat.completions.create(**common_args, max_completion_tokens=max_tokens)
+                response = client.chat.completions.create(**common_args, max_completion_tokens=max_tokens)
+            elif model.startswith("gpt-5"):
+                common_args['temperature'] = 1  # only default value of 1 is supported
+                response = client.chat.completions.create(**common_args)
+            elif is_google_api :
+                response = client.chat.completions.create(**common_args)
             else:
-                if use_google:
-                    response = client.chat.completions.create(**common_args)
-                else:
-                    response = client.chat.completions.create(**common_args, max_tokens=max_tokens)
+                response = client.chat.completions.create(**common_args, max_tokens=max_tokens)
 
             output = response.choices[0].message.content
             break
