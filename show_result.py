@@ -146,6 +146,33 @@ def display_result_single(args):
     df_1 = df[df["turn"] == 1].groupby(["model", "turn"]).mean() / len(all_exams)
     print(df_1.sort_values(by="score", ascending=False))
 
+    if args.wandb_project is not None:
+        assert args.wandb_experiment_name is not None, "wandb_experiment_name must be specified when args.wandb_project is set"
+        assert args.wandb_entity is not None, "wandb_entity must be specified when args.wandb_project is set"
+        assert args.wandb_model_id is not None, "wandb_model_id must be specified when args.wandb_project is set"
+
+        # Log the results to wandb only for the model specified by wandb_model_id
+        model_scores = df_1[df_1.index.get_level_values(0) == args.wandb_model_id]
+        assert not model_scores.empty, f"No scores found for model {args.wandb_model_id}"
+
+        import wandb
+
+        wandb.init(
+            project=args.wandb_project,
+            entity=args.wandb_entity,
+            name=args.wandb_experiment_name,
+            config={
+                "bench_name": args.bench_name,
+                "judge_model": args.judge_model,
+                "wandb_model_id": args.wandb_model_id,
+            },
+        )
+
+        wandb.log({
+            f"score_{args.wandb_model_id}": model_scores['score'].values[0],
+        })
+        
+        print(f"Results logged to wandb: {args.wandb_project}/{args.wandb_experiment_name}")
 
 def display_result_pairwise(args):
     if args.input_file is None:
@@ -231,6 +258,14 @@ if __name__ == "__main__":
             "`single` runs single answer grading."
         ),
     )
+    parser.add_argument("--wandb-project", type=str, default=None)
+    parser.add_argument("--wandb-entity", type=str, default=None)
+    parser.add_argument("--wandb-experiment-name", type=str, default=None)
+    parser.add_argument(
+        "--wandb-model-id", type=str, default=None, 
+        help="Model ID for wandb logging. This script computes scores for all judged models."
+             "However, we only log to wandb one model, which is specified in this argument.")
+
     args = parser.parse_args()
 
     if args.mode == "single":
