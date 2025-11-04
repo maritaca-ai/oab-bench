@@ -160,7 +160,8 @@ def display_result_single(args):
         wandb.init(
             project=args.wandb_project,
             entity=args.wandb_entity,
-            name=args.wandb_experiment_name,
+            id=args.wandb_experiment_name,
+            resume="allow",
             config={
                 "bench_name": args.bench_name,
                 "judge_model": args.judge_model,
