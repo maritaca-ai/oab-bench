@@ -178,7 +178,7 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False, clie
     conv.append_message(conv.roles[1], None)
 
     if model.startswith("gpt-"):
-        judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048, client=client)
+        judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=20000, client=client)
     elif model.startswith("gemini"):
         judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=20000, client=client)
     elif any(model.startswith(m) for m in ["o1", "o3"]):
@@ -296,7 +296,7 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
     conv.append_message(conv.roles[1], None)
 
     if model.startswith("gpt-"):
-        judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=2048, client=client)
+        judgment = chat_completion_openai(model, conv, temperature=0, max_tokens=20000, client=client)
     elif any(model.startswith(m) for m in ["o1", "o3"]):
         # With o1 models and newer, developer messages replace the previous system messages.
         conv.messages[0][0] = "developer"
