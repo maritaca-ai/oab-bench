@@ -9,6 +9,7 @@ import json
 import os
 import re
 import time
+import uuid
 from typing import Optional
 
 import openai
@@ -260,8 +261,10 @@ def play_a_match_single(match: MatchSingle, output_file: str, client=None):
         question_id = question["question_id"]
         turn = 1 if not multi_turn else 2
         result = {
+            "judgment_id": uuid.uuid4().hex,
             "question_id": question_id,
             "model": model,
+            "answer_id": answer["answer_id"],
             "judge": (judge.model_name, judge.prompt_template["name"]),
             "user_prompt": user_prompt,
             "judgment": judgment,
@@ -409,9 +412,12 @@ def play_a_match_pair(match: MatchPair, output_file: str, client=None):
         turn = 1 if not multi_turn else 2
 
         result = {
+            "judgment_id": uuid.uuid4().hex,
             "question_id": question_id,
             "model_1": model_1,
             "model_2": model_2,
+            "answer_id_1": answer_1["answer_id"],
+            "answer_id_2": answer_2["answer_id"],
             "g1_winner": g1_winner,
             "g2_winner": g2_winner,
             "judge": (judge.model_name, judge.prompt_template["name"]),
@@ -447,9 +453,12 @@ def play_a_match_pair(match: MatchPair, output_file: str, client=None):
 
         question_id = question["question_id"]
         result = {
+            "judgment_id": uuid.uuid4().hex,
             "question_id": question_id,
             "model_1": model_1,
             "model_2": model_2,
+            "answer_id_1": answer_1["answer_id"],
+            "answer_id_2": answer_2["answer_id"],
             "g1_winner": winner,
             "g2_winner": winner,
             "judge": (judge.model_name, judge.prompt_template["name"]),
@@ -779,7 +788,7 @@ def get_pairwise_judge_explanation(gamekey, judgment_dict):
         return (
             f"**Game 1**. **A**: {model_1}, **B**: {model_2}\n\n"
             f"**Judgment**: {g1_judgment}"
-            + f"\n\n`--------------------------`\n\n"
+            + "\n\n`--------------------------`\n\n"
             + f"**Game 2**. **A**: {model_2}, **B**: {model_1}\n\n"
             f"**Judgment**: {g2_judgment}"
         )

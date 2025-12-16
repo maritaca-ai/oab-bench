@@ -39,13 +39,13 @@ def deduplicate_judgments(df):
         )
         
         # Print details about duplicates for debugging
-        print(f"\n=== Duplicate Detection ===")
+        print("\n=== Duplicate Detection ===")
         print(f"Total duplicate entries found: {duplicate_count}")
         print(f"Unique combinations with duplicates: {duplicate_groups}")
         
         # Show some examples of duplicates
         duplicate_examples = df[duplicates_mask].groupby(key_cols).size()
-        print(f"\nExamples of duplicate combinations:")
+        print("\nExamples of duplicate combinations:")
         for (qid, model, turn), count in duplicate_examples.head(10).items():
             print(f"  {qid}, {model}, turn {turn}: {count} occurrences")
         if len(duplicate_examples) > 10:
@@ -128,6 +128,97 @@ def load_generation_usage(bench_name, models):
                             add_usage(usage_by_model[model_name], usage)
         except FileNotFoundError:
             continue
+    return usage_by_model
+
+
+def _add_totals(acc, totals, weight=1.0):
+    if not totals:
+        return
+    acc["prompt_tokens"] += totals.get("prompt_tokens", 0.0) * weight
+    acc["completion_tokens"] += totals.get("completion_tokens", 0.0) * weight
+    acc["total_tokens"] += totals.get("total_tokens", 0.0) * weight
+
+
+def load_answer_usage_index(bench_name, models):
+    """
+    Build an index: answer_id -> (model_name, usage_totals) from model_answer/*.jsonl.
+
+    This allows generation token usage to be joined/deduped via answer_id rather than
+    summing the entire answer file (which can inflate totals when answers are reused in pairwise).
+    """
+    answer_dir = f"data/{bench_name}/model_answer"
+    index = {}
+    for path in glob.glob(os.path.join(answer_dir, "*.jsonl")):
+        model_name = os.path.splitext(os.path.basename(path))[0]
+        if models and model_name not in models:
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as fin:
+                for line in fin:
+                    if not line.strip():
+                        continue
+                    obj = json.loads(line)
+                    answer_id = obj.get("answer_id")
+                    if not answer_id:
+                        continue
+                    totals = new_usage_totals()
+                    for choice in obj.get("choices", []):
+                        for turn in choice.get("turns", []):
+                            usage = turn.get("usage") if isinstance(turn, dict) else None
+                            add_usage(totals, usage)
+                    index[answer_id] = (model_name, totals)
+        except FileNotFoundError:
+            continue
+    return index
+
+
+def generation_usage_from_judgments_single(df, models, bench_name):
+    """Aggregate generation usage by model using answer_id (deduped)."""
+    if "answer_id" not in df.columns:
+        return None
+    answer_index = load_answer_usage_index(bench_name, models)
+    usage_by_model = defaultdict(new_usage_totals)
+
+    for model in models:
+        model_rows = df[df["model"] == model]
+        if model_rows.empty:
+            continue
+        for aid in set(model_rows["answer_id"].dropna().tolist()):
+            entry = answer_index.get(aid)
+            if not entry:
+                continue
+            _, totals = entry
+            _add_totals(usage_by_model[model], totals, weight=1.0)
+
+    return usage_by_model
+
+
+def generation_usage_from_judgments_pairwise(df, models, bench_name):
+    """Aggregate generation usage by model using answer_id_1/answer_id_2 (deduped)."""
+    if "answer_id_1" not in df.columns or "answer_id_2" not in df.columns:
+        return None
+    answer_index = load_answer_usage_index(bench_name, models)
+    usage_by_model = defaultdict(new_usage_totals)
+
+    ids_by_model = defaultdict(set)
+    for _, row in df.iterrows():
+        m1 = row.get("model_1")
+        m2 = row.get("model_2")
+        a1 = row.get("answer_id_1")
+        a2 = row.get("answer_id_2")
+        if m1 in models and a1:
+            ids_by_model[m1].add(a1)
+        if m2 in models and a2:
+            ids_by_model[m2].add(a2)
+
+    for model, aids in ids_by_model.items():
+        for aid in aids:
+            entry = answer_index.get(aid)
+            if not entry:
+                continue
+            _, totals = entry
+            _add_totals(usage_by_model[model], totals, weight=1.0)
+
     return usage_by_model
 
 
@@ -310,7 +401,9 @@ def display_result_single(args):
         if args.model_list is not None:
             usage_filtered = usage_filtered[usage_filtered["model"].isin(args.model_list)]
         judge_usage = aggregate_judge_usage_single(usage_filtered, models_for_usage)
-        gen_usage = load_generation_usage(args.bench_name, models_for_usage)
+        gen_usage = generation_usage_from_judgments_single(
+            usage_filtered, models_for_usage, args.bench_name
+        ) or load_generation_usage(args.bench_name, models_for_usage)
         usage_table = build_usage_table(models_for_usage, gen_usage, judge_usage)
 
         if args.show_usage and usage_table is not None:
@@ -372,7 +465,9 @@ def display_result_pairwise(args):
     df_all = pd.read_json(input_file, lines=True)
     
     # Remove duplicates keeping only the last occurrence
-    df_all = deduplicate_judgments(df_all)
+    # Keep dedup logic unchanged; only apply when expected columns exist.
+    if {"question_id", "model", "turn"}.issubset(df_all.columns):
+        df_all = deduplicate_judgments(df_all)
     df_all = df_all[(df_all["g1_winner"] != "error") & (df_all["g2_winner"] != "error")]
 
     model_list = (
@@ -429,7 +524,9 @@ def display_result_pairwise(args):
             models_for_usage,
             baseline_model=args.baseline_model,
         )
-        gen_usage = load_generation_usage(args.bench_name, models_for_usage)
+        gen_usage = generation_usage_from_judgments_pairwise(
+            usage_source, models_for_usage, args.bench_name
+        ) or load_generation_usage(args.bench_name, models_for_usage)
         usage_table = build_usage_table(models_for_usage, gen_usage, judge_usage)
 
         if args.show_usage and usage_table is not None:
