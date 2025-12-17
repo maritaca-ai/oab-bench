@@ -56,9 +56,9 @@ def get_answer(
             if api_base is not None:
                 api_dict["api_base"] = api_base
                 
-            output = chat_completion_openai(model, conv, temperature, max_tokens, api_dict, client)
-            conv.update_last_message(output.content)
-            turns.append({"content": output.content, "usage": output.usage})
+            content, usage = chat_completion_openai(model, conv, temperature, max_tokens, api_dict, client)
+            conv.update_last_message(content)
+            turns.append({"content": content, "usage": usage})
 
         choices.append({"index": i, "turns": turns})
 

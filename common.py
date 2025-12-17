@@ -94,24 +94,6 @@ class MatchPair:
     multi_turn: bool = False
 
 
-@dataclasses.dataclass
-class LLMResult:
-    content: str
-    usage: Optional[dict] = None
-
-
-def extract_turn_text(turn):
-    """Return the textual content from a turn that may include metadata."""
-    if isinstance(turn, dict):
-        return (
-            turn.get("content")
-            or turn.get("text")
-            or turn.get("message")
-            or ""
-        )
-    return turn
-
-
 def load_questions(question_file: str, begin: Optional[int], end: Optional[int]):
     """Load questions from a file."""
     questions = []
@@ -159,18 +141,25 @@ def load_judge_prompts(prompt_file: str):
     return prompts
 
 
+def _turn_content(turn):
+    """Return turn content, accepting both dict and raw string."""
+    if isinstance(turn, dict):
+        return turn.get("content", "")
+    return turn
+
+
 def run_judge_single(question, answer, judge, ref_answer, multi_turn=False, client=None):
     kwargs = {}
     model = judge.model_name
     answer_turns = answer["choices"][0]["turns"]
-    answer_1 = extract_turn_text(answer_turns[0])
-    answer_2 = extract_turn_text(answer_turns[1]) if multi_turn else None
+    answer_1 = _turn_content(answer_turns[0])
+    answer_2 = _turn_content(answer_turns[1]) if multi_turn else None
 
     ref_turns = ref_answer["choices"][0]["turns"] if ref_answer is not None else None
     if ref_turns is not None:
-        kwargs["ref_answer_1"] = extract_turn_text(ref_turns[0])
+        kwargs["ref_answer_1"] = _turn_content(ref_turns[0])
         if multi_turn:
-            kwargs["ref_answer_2"] = extract_turn_text(ref_turns[1])
+            kwargs["ref_answer_2"] = _turn_content(ref_turns[1])
 
     # for exams
     if question.get("values", None):
@@ -202,19 +191,19 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False, clie
     conv.append_message(conv.roles[1], None)
 
     if model.startswith("gpt-"):
-        judgment_response = chat_completion_openai(model, conv, temperature=0, max_tokens=2048, client=client)
+        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=2048, client=client)
     elif model.startswith("gemini"):
-        judgment_response = chat_completion_openai(model, conv, temperature=0, max_tokens=20000, client=client)
+        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=20000, client=client)
     elif any(model.startswith(m) for m in ["o1", "o3"]):
         # With o1 models and newer, developer messages replace the previous system messages.
         conv.messages[0][0] = "developer"
         # temperature=1 is the only value supported
         # use large max_tokens for "thinking"
-        judgment_response = chat_completion_openai(model, conv, temperature=1, max_tokens=20000, client=client)
+        judgment, judge_usage = chat_completion_openai(model, conv, temperature=1, max_tokens=20000, client=client)
     elif model.startswith("deepseek"):
         # temperature=1 is the only value supported
         # use large max_tokens for "thinking"
-        judgment_response = chat_completion_openai(
+        judgment, judge_usage = chat_completion_openai(
             model,
             conv,
             temperature=1,
@@ -225,7 +214,6 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False, clie
     else:
         raise ValueError(f"Invalid judge model name: {model}")
 
-    judgment = judgment_response.content
     if judge.prompt_template["output_format"] == "[[rating]]":
         match = re.search(one_score_pattern, judgment)
         if not match:
@@ -240,7 +228,7 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False, clie
             f"invalid output format: {judge.prompt_template['output_format']}"
         )
 
-    return rating, user_prompt, judgment, judgment_response.usage
+    return rating, user_prompt, judgment, judge_usage
 
 
 def play_a_match_single(match: MatchSingle, output_file: str, client=None):
@@ -293,16 +281,16 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
     kwargs = {}
     model = judge.model_name
     if ref_answer is not None:
-        kwargs["ref_answer_1"] = extract_turn_text(ref_answer["choices"][0]["turns"][0])
+        kwargs["ref_answer_1"] = _turn_content(ref_answer["choices"][0]["turns"][0])
         if multi_turn:
-            kwargs["ref_answer_2"] = extract_turn_text(ref_answer["choices"][0]["turns"][1])
+            kwargs["ref_answer_2"] = _turn_content(ref_answer["choices"][0]["turns"][1])
 
     answer_a_turns = answer_a["choices"][0]["turns"]
     answer_b_turns = answer_b["choices"][0]["turns"]
-    answer_a_1 = extract_turn_text(answer_a_turns[0])
-    answer_b_1 = extract_turn_text(answer_b_turns[0])
-    answer_a_2 = extract_turn_text(answer_a_turns[1]) if multi_turn else None
-    answer_b_2 = extract_turn_text(answer_b_turns[1]) if multi_turn else None
+    answer_a_1 = _turn_content(answer_a_turns[0])
+    answer_b_1 = _turn_content(answer_b_turns[0])
+    answer_a_2 = _turn_content(answer_a_turns[1]) if multi_turn else None
+    answer_b_2 = _turn_content(answer_b_turns[1]) if multi_turn else None
 
     if multi_turn:
         system_prompt = judge.prompt_template["system_prompt"]
@@ -331,17 +319,17 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
     conv.append_message(conv.roles[1], None)
 
     if model.startswith("gpt-"):
-        judgment_response = chat_completion_openai(model, conv, temperature=0, max_tokens=2048, client=client)
+        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=2048, client=client)
     elif any(model.startswith(m) for m in ["o1", "o3"]):
         # With o1 models and newer, developer messages replace the previous system messages.
         conv.messages[0][0] = "developer"
         # temperature=1 is the only value supported
         # use large max_tokens for "thinking"
-        judgment_response = chat_completion_openai(model, conv, temperature=1, max_tokens=20000, client=client)
+        judgment, judge_usage = chat_completion_openai(model, conv, temperature=1, max_tokens=20000, client=client)
     elif model.startswith("deepseek"):
         # temperature=1 is the only value supported
         # use large max_tokens for "thinking"
-        judgment_response = chat_completion_openai(
+        judgment, judge_usage = chat_completion_openai(
             model,
             conv,
             temperature=1,
@@ -352,7 +340,6 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
     else:
         raise ValueError(f"Invalid judge model name: {model}")
 
-    judgment = judgment_response.content
     if judge.prompt_template["output_format"] == "[[A]]":
         if "[[A]]" in judgment:
             winner = "A"
@@ -381,7 +368,7 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
             f"invalid output format: {judge.prompt_template['output_format']}"
         )
 
-    return winner, user_prompt, judgment, judgment_response.usage
+    return winner, user_prompt, judgment, judge_usage
 
 
 def play_a_match_pair(match: MatchPair, output_file: str, client=None):
@@ -500,29 +487,6 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
                 client.base_url = api_dict["api_base"]
             if "api_key" in api_dict:
                 client.api_key = api_dict["api_key"]
-    result = LLMResult(content=API_ERROR_OUTPUT, usage=None)
-
-    def _extract_usage(usage_obj):
-        if usage_obj is None:
-            return None
-        if isinstance(usage_obj, dict):
-            return usage_obj
-
-        if hasattr(usage_obj, "model_dump"):
-            return usage_obj.model_dump()
-        if hasattr(usage_obj, "to_dict"):
-            return usage_obj.to_dict()
-
-        try:
-            return dict(usage_obj)
-        except Exception:
-            pass
-
-        raw_dict = getattr(usage_obj, "__dict__", None)
-        if raw_dict:
-            return raw_dict
-
-        return None
 
     for _ in range(API_MAX_RETRY):
         try:
@@ -548,17 +512,16 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
             else:
                 response = client.chat.completions.create(**common_args, max_tokens=max_tokens)
 
-            usage_info = _extract_usage(getattr(response, "usage", None))
-            result = LLMResult(
-                content=response.choices[0].message.content,
-                usage=usage_info,
-            )
-            break
+            usage_info = getattr(response, "usage", None)
+            if hasattr(usage_info, "model_dump"):
+                usage_info = usage_info.model_dump()
+
+            return response.choices[0].message.content, usage_info
         except openai.OpenAIError as e:
             print(type(e), e)
             time.sleep(API_RETRY_SLEEP)
 
-    return result
+    return API_ERROR_OUTPUT, None
 
 
 def chat_completion_openai_azure(model, conv, temperature, max_tokens, api_dict=None, client=None):
@@ -788,7 +751,7 @@ def get_pairwise_judge_explanation(gamekey, judgment_dict):
         return (
             f"**Game 1**. **A**: {model_1}, **B**: {model_2}\n\n"
             f"**Judgment**: {g1_judgment}"
-            + "\n\n`--------------------------`\n\n"
+            + f"\n\n`--------------------------`\n\n"
             + f"**Game 2**. **A**: {model_2}, **B**: {model_1}\n\n"
             f"**Judgment**: {g2_judgment}"
         )
