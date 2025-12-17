@@ -8,22 +8,6 @@ import pandas as pd
 import warnings
 import flatten_dict
 
-DEFAULT_FLAT_USAGE = {
-    "prompt_tokens": 0,
-    "completion_tokens": 0,
-    "total_tokens": 0,
-    "prompt_tokens_details/cached_tokens": 0,
-    "prompt_tokens_details/audio_tokens": 0,
-    "completion_tokens_details/reasoning_tokens": 0,
-    "completion_tokens_details/audio_tokens": 0,
-    "completion_tokens_details/accepted_prediction_tokens": 0,
-    "completion_tokens_details/rejected_prediction_tokens": 0,
-    # maritalk specifics
-    "extraction_details/medium_effort_pages_extracted": 0,
-    "extraction_details/advanced_effort_pages_extracted": 0,
-}
-
-
 def deduplicate_judgments(df):
     """
     Remove duplicate judgments keeping only the last occurrence.
@@ -74,14 +58,16 @@ def add_level_to_flat_dict(d, name):
 
 
 def normalize_flatten_usage(d, parent_key=None):
-    out = dict(DEFAULT_FLAT_USAGE)
-    out.update((flatten_dict.flatten({k: v for k, v in d.items() if v}, "path")))
+    """Flatten a usage dict and apply defaults so aggregation/join math stays safe."""
+    out = flatten_dict.flatten({k: v for k, v in d.items() if v}, "path")
     if parent_key is not None:
         out = add_level_to_flat_dict(out, parent_key)
     return out
 
 
 def calculate_usage_single(df_all, model_list):
+    """Aggregate judge and answer token usage per model for single-mode reports."""
+    # Select only necessary columns and drop null data (can only account for valid token usage)
     df_judge_usage = (
         df_all[["model", "judgment_id", "answer_id", "judge_usage"]].dropna().copy()
     )
@@ -91,12 +77,16 @@ def calculate_usage_single(df_all, model_list):
         df_judge_usage.set_index(
             ["model", "answer_id", "judgment_id"], verify_integrity=True
         )
-        .sort_index()["judge_usage"]
+        .sort_index()
+        # Flatten judge_usage so later joins/sums work on columns
+        ["judge_usage"]
         .apply(lambda x: normalize_flatten_usage(x, "judge"))
         .to_frame()
     )
+    # Load only the judged models' answers and flatten their usage
     models_to_load = df_judge_usage.index.get_level_values("model").unique()
     df_answer_usage = (
+        # Concatenate usage data from all models
         pd.concat(
             [
                 pd.read_json(
@@ -105,30 +95,37 @@ def calculate_usage_single(df_all, model_list):
                 for model in models_to_load
             ]
         )
-        .set_index(["model", "answer_id"], verify_integrity=True)["choices"]
+        # Set index for joining
+        .set_index(["model", "answer_id"], verify_integrity=True)
+        ["choices"]
+        # Take the first choice and flatten usage for every turn
         .map(
             lambda x: [
                 normalize_flatten_usage(turn["usage"], "answer")
                 for turn in x[0]["turns"]
             ]
         )
+        # Explode to account for each turn and convert to a dataframe for joining
         .explode()
         .to_frame("answer_usage")
     )
-    # keep only judged answers
     answer_ids = df_judge_usage.index.get_level_values("answer_id").unique()
     df_answer_usage = (
         df_answer_usage[
             df_answer_usage.index.get_level_values("answer_id").isin(answer_ids)
         ]
-        .reset_index("answer_id", drop=True)["answer_usage"]
+        .reset_index("answer_id", drop=True)
+        ["answer_usage"]
+        # Convert a Series of dicts to a dataframe and total tokens per model
         .apply(pd.Series)
         .groupby("model")
         .sum()
     )
+    # Sum judge and answer usage per model to compare total cost
     df_judge_usage = (
         df_judge_usage["judge_usage"].apply(pd.Series).groupby("model").sum()
     )
+    # Join judge and answer token usage so they are in the same dataset
     df_usage = df_judge_usage.join(df_answer_usage, how="outer", validate="1:1")
     return df_usage
 
