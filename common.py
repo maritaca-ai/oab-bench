@@ -751,7 +751,7 @@ def get_pairwise_judge_explanation(gamekey, judgment_dict):
         return (
             f"**Game 1**. **A**: {model_1}, **B**: {model_2}\n\n"
             f"**Judgment**: {g1_judgment}"
-            + f"\n\n`--------------------------`\n\n"
+            + "\n\n`--------------------------`\n\n"
             + f"**Game 2**. **A**: {model_2}, **B**: {model_1}\n\n"
             f"**Judgment**: {g2_judgment}"
         )
