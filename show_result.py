@@ -237,11 +237,6 @@ def display_result_single(args):
         ):
             print(df_usage.T)
 
-    usage_for_model = df_usage.to_dict(orient="index").get(args.wandb_model_id, {})
-    model_scores = df_1[df_1.index.get_level_values(0) == args.wandb_model_id]
-    if usage_for_model:
-        usage_for_model = add_level_to_flat_dict(usage_for_model, "token_usage")
-
 
     if args.wandb_project is not None:
         assert args.wandb_experiment_name is not None, "wandb_experiment_name must be specified when args.wandb_project is set"
