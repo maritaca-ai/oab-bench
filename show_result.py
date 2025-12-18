@@ -68,14 +68,16 @@ def normalize_flatten_usage(d, parent_key=None):
 def calculate_usage_single(df_all, model_list):
     """Aggregate judge and answer token usage per model for single-mode reports."""
     # Select only necessary columns and drop null data (can only account for valid token usage)
+    
     df_judge_usage = (
-        df_all[["model", "judgment_id", "answer_id", "judge_usage"]].dropna().copy()
+        df_all[["model", "judge", "judgment_id", "answer_id", "judge_usage"]].dropna().copy()
     )
+    df_judge_usage["judge"] = df_judge_usage["judge"].str[0]
     if model_list is not None:
         df_judge_usage = df_judge_usage[df_judge_usage["model"].isin(model_list)]
     df_judge_usage = (
         df_judge_usage.set_index(
-            ["model", "answer_id", "judgment_id"], verify_integrity=True
+            ["model", "judge", "answer_id", "judgment_id"], verify_integrity=True
         )
         .sort_index()
         # Flatten judge_usage so later joins/sums work on columns
@@ -123,7 +125,7 @@ def calculate_usage_single(df_all, model_list):
     )
     # Sum judge and answer usage per model to compare total cost
     df_judge_usage = (
-        df_judge_usage["judge_usage"].apply(pd.Series).groupby("model").sum()
+        df_judge_usage["judge_usage"].apply(pd.Series).groupby(["model", "judge"]).sum()
     )
     # Join judge and answer token usage so they are in the same dataset
     df_usage = df_judge_usage.join(df_answer_usage, how="outer", validate="1:1")
@@ -143,6 +145,7 @@ def display_result_single(args):
     # Remove duplicates keeping only the last occurrence
     df_all = deduplicate_judgments(df_all)
     df_usage = calculate_usage_single(df_all, args.model_list)
+
 
     if args.bench_name == 'oab_bench':
         # for each question, sum the scores of all subquestions
@@ -222,6 +225,10 @@ def display_result_single(args):
 
     df_1 = df[df["turn"] == 1].groupby(["model", "turn"]).mean() / len(all_exams)
     print(df_1.sort_values(by="score", ascending=False))
+    
+    # Add score info to df_usage
+    df_usage = df_1.join(df_usage, how="inner")
+    df_usage.reset_index().to_json("df_usage.jsonl", lines=True, orient="records")
 
     if not df_usage.empty:
         print("\n=== Token usage per model (generation + judge) ===")
@@ -246,7 +253,7 @@ def display_result_single(args):
             df_usage_pretty = df_usage.loc[:, df_usage.columns.isin(main_use_cols)].astype(float).copy()
             df_usage_pretty.columns = df_usage_pretty.columns.str.split("/", n=1, expand=True)
             print("Note: showing only columns with positive values; see W&B for the full table.")
-
+    
 
     if args.wandb_project is not None:
         assert args.wandb_experiment_name is not None, "wandb_experiment_name must be specified when args.wandb_project is set"
