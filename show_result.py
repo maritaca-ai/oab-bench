@@ -227,12 +227,25 @@ def display_result_single(args):
         print("\n=== Token usage per model (generation + judge) ===")
         with pd.option_context(
             "display.max_rows", None,
-            "display.max_columns", None,
+            "display.max_columns", 0,
             "display.max_colwidth", None,
             "display.width", 0,
-            "display.expand_frame_repr", False,
+            "display.expand_frame_repr", True,
+            "display.float_format", lambda x: f"{x:_.6f}".rstrip("0").rstrip("."),
         ):
-            print(df_usage.T)
+            main_use_cols = [
+                "judge/prompt_tokens",
+                "judge/completion_tokens",
+                "judge/completion_tokens_details/reasoning_tokens",
+                "judge/prompt_tokens_details/cached_tokens",
+                "answer/prompt_tokens",
+                "answer/completion_tokens",
+                "answer/completion_tokens_details/reasoning_tokens",
+                "answer/prompt_tokens_details/cached_tokens",
+            ]
+            df_usage_pretty = df_usage.loc[:, df_usage.columns.isin(main_use_cols)].astype(float).copy()
+            df_usage_pretty.columns = df_usage_pretty.columns.str.split("/", n=1, expand=True)
+            print("Note: showing only columns with positive values; see W&B for the full table.")
 
 
     if args.wandb_project is not None:
