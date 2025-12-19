@@ -153,9 +153,6 @@ def display_result_single(args):
     df_all = pd.read_json(input_file, lines=True)
     # Remove duplicates keeping only the last occurrence
     df_all = deduplicate_judgments(df_all)
-    df_token_usage = calculate_token_usage_single(
-        df_all, args.model_list, args.bench_name
-    )
 
     if args.bench_name == 'oab_bench':
         # for each question, sum the scores of all subquestions
@@ -236,6 +233,9 @@ def display_result_single(args):
     df_1 = df[df["turn"] == 1].groupby(["model", "turn"]).mean() / len(all_exams)
     print(df_1.sort_values(by="score", ascending=False))
     
+    df_token_usage = calculate_token_usage_single(
+        df_all, args.model_list, args.bench_name
+    )
     if not df_token_usage.empty:
         print("\n=== Token usage per model (generation + judge) ===")
         with pd.option_context(
