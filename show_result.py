@@ -65,12 +65,14 @@ def normalize_flatten_usage(d, parent_key=None):
     return out
 
 
-def calculate_usage_single(df_all, model_list):
+def calculate_token_usage_single(df_all, model_list, bench_name: str):
     """Aggregate judge and answer token usage per model for single-mode reports."""
     # Select only necessary columns and drop null data (can only account for valid token usage)
-    
+
     df_judge_usage = (
-        df_all[["model", "judge", "judgment_id", "answer_id", "judge_usage"]].dropna().copy()
+        df_all[["model", "judge", "judgment_id", "answer_id", "judge_usage"]]
+        .dropna()
+        .copy()
     )
     df_judge_usage["judge"] = df_judge_usage["judge"].str[0]
     if model_list is not None:
@@ -78,10 +80,10 @@ def calculate_usage_single(df_all, model_list):
     df_judge_usage = (
         df_judge_usage.set_index(
             ["model", "judge", "answer_id", "judgment_id"], verify_integrity=True
-        )
-        .sort_index()
-        # Flatten judge_usage so later joins/sums work on columns
-        ["judge_usage"]
+        )[
+            # Flatten judge_usage so later joins/sums work on columns
+            "judge_usage"
+        ]
         .apply(lambda x: normalize_flatten_usage(x, "judge"))
         .to_frame()
     )
@@ -92,14 +94,13 @@ def calculate_usage_single(df_all, model_list):
         pd.concat(
             [
                 pd.read_json(
-                    f"data/{args.bench_name}/model_answer/{model}.jsonl", lines=True
+                    f"data/{bench_name}/model_answer/{model}.jsonl", lines=True
                 ).assign(model=model)
                 for model in models_to_load
             ]
         )
         # Set index for joining
-        .set_index(["model", "answer_id"], verify_integrity=True)
-        ["choices"]
+        .set_index(["model", "answer_id"], verify_integrity=True)["choices"]
         # Take the first choice and flatten usage for every turn
         .map(
             lambda x: [
@@ -116,19 +117,27 @@ def calculate_usage_single(df_all, model_list):
         df_answer_usage[
             df_answer_usage.index.get_level_values("answer_id").isin(answer_ids)
         ]
-        .reset_index("answer_id", drop=True)
-        ["answer_usage"]
+        .reset_index("answer_id", drop=True)["answer_usage"]
         # Convert a Series of dicts to a dataframe and total tokens per model
         .apply(pd.Series)
         .groupby("model")
         .sum()
+        .reset_index()
     )
     # Sum judge and answer usage per model to compare total cost
     df_judge_usage = (
-        df_judge_usage["judge_usage"].apply(pd.Series).groupby(["model", "judge"]).sum()
+        df_judge_usage["judge_usage"]
+        .apply(pd.Series)
+        .groupby(["model", "judge"])
+        .sum()
+        .reset_index()
     )
-    # Join judge and answer token usage so they are in the same dataset
-    df_usage = df_judge_usage.join(df_answer_usage, how="outer", validate="1:1")
+    df_usage = df_judge_usage.merge(
+        df_answer_usage,
+        on="model",
+        how="left",
+        validate="m:1",
+    )
     return df_usage
 
 
@@ -144,8 +153,9 @@ def display_result_single(args):
     df_all = pd.read_json(input_file, lines=True)
     # Remove duplicates keeping only the last occurrence
     df_all = deduplicate_judgments(df_all)
-    df_usage = calculate_usage_single(df_all, args.model_list)
-
+    df_token_usage = calculate_token_usage_single(
+        df_all, args.model_list, args.bench_name
+    )
 
     if args.bench_name == 'oab_bench':
         # for each question, sum the scores of all subquestions
@@ -226,11 +236,7 @@ def display_result_single(args):
     df_1 = df[df["turn"] == 1].groupby(["model", "turn"]).mean() / len(all_exams)
     print(df_1.sort_values(by="score", ascending=False))
     
-    # Add score info to df_usage
-    df_usage = df_1.join(df_usage, how="inner")
-    df_usage.reset_index().to_json("df_usage.jsonl", lines=True, orient="records")
-
-    if not df_usage.empty:
+    if not df_token_usage.empty:
         print("\n=== Token usage per model (generation + judge) ===")
         with pd.option_context(
             "display.max_rows", None,
@@ -240,7 +246,7 @@ def display_result_single(args):
             "display.expand_frame_repr", True,
             "display.float_format", lambda x: f"{x:_.6f}".rstrip("0").rstrip("."),
         ):
-            main_use_cols = [
+            main_token_usage_cols = [
                 "judge/prompt_tokens",
                 "judge/completion_tokens",
                 "judge/completion_tokens_details/reasoning_tokens",
@@ -250,8 +256,19 @@ def display_result_single(args):
                 "answer/completion_tokens_details/reasoning_tokens",
                 "answer/prompt_tokens_details/cached_tokens",
             ]
-            df_usage_pretty = df_usage.loc[:, df_usage.columns.isin(main_use_cols)].astype(float).copy()
-            df_usage_pretty.columns = df_usage_pretty.columns.str.split("/", n=1, expand=True)
+            df_usage_pretty = df_token_usage.set_index("model", verify_integrity=True)
+            df_usage_pretty = (
+                df_usage_pretty.loc[
+                    :, df_usage_pretty.columns.isin(main_token_usage_cols)
+                ]
+                .astype(float)
+                .copy()
+            )
+            df_usage_pretty.columns = df_usage_pretty.columns.str.split(
+                "/", n=1, expand=True
+            )
+            df_usage_pretty = df_usage_pretty.stack().add_suffix("_tokens")
+            print(df_usage_pretty)
             print("Note: showing only columns with positive values; see W&B for the full table.")
     
 
@@ -264,10 +281,15 @@ def display_result_single(args):
         model_scores = df_1[df_1.index.get_level_values(0) == args.wandb_model_id]
         assert not model_scores.empty, f"No scores found for model {args.wandb_model_id}"
 
-        usage_for_model = df_usage.to_dict(orient="index").get(args.wandb_model_id, {})
-        if usage_for_model:
-            usage_for_model = add_level_to_flat_dict(usage_for_model, "token_usage")
-
+        token_usage_for_model = {}
+        if not df_token_usage.empty:
+            token_usage_for_model = (
+                df_token_usage.set_index(["model", "judge"], verify_integrity=True)
+                .to_dict("index")
+                .get((args.wandb_model_id, args.judge_model), {})
+            )
+        if token_usage_for_model:
+            token_usage_for_model = add_level_to_flat_dict(token_usage_for_model, "token_usage")
         import wandb
 
         wandb.init(
@@ -282,14 +304,14 @@ def display_result_single(args):
             },
         )
         wandb_table = wandb.Table(
-            columns=["run_id", "model", "judge_model", "score", *usage_for_model.keys()],
+            columns=["run_id", "model", "judge_model", "score", *token_usage_for_model.keys()],
             rows=[
                 [
                     args.wandb_experiment_name,
                     args.wandb_model_id,
                     args.judge_model,
                     model_scores["score"].values[0],
-                    *usage_for_model.values(),
+                    *token_usage_for_model.values(),
                 ],
             ],
             log_mode="MUTABLE",
@@ -297,7 +319,7 @@ def display_result_single(args):
 
         wandb.log({
             f"score_{args.wandb_model_id}": model_scores['score'].values[0],
-            **usage_for_model,
+            **token_usage_for_model,
             "results_table": wandb_table,
         })
         
