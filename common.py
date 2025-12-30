@@ -249,7 +249,6 @@ def play_a_match_single(match: MatchSingle, output_file: str, client=None):
         question_id = question["question_id"]
         turn = 1 if not multi_turn else 2
         result = {
-            "judgment_id": uuid.uuid4().hex,
             "question_id": question_id,
             "model": model,
             "answer_id": answer["answer_id"],
@@ -399,7 +398,6 @@ def play_a_match_pair(match: MatchPair, output_file: str, client=None):
         turn = 1 if not multi_turn else 2
 
         result = {
-            "judgment_id": uuid.uuid4().hex,
             "question_id": question_id,
             "model_1": model_1,
             "model_2": model_2,
@@ -440,7 +438,6 @@ def play_a_match_pair(match: MatchPair, output_file: str, client=None):
 
         question_id = question["question_id"]
         result = {
-            "judgment_id": uuid.uuid4().hex,
             "question_id": question_id,
             "model_1": model_1,
             "model_2": model_2,
