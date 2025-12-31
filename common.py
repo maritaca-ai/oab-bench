@@ -509,6 +509,10 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
                 response = client.responses.create(**common_args, max_output_tokens=max_tokens)
 
             usage_info = response.usage
+            if usage_info is not None and hasattr(usage_info, "model_dump"):
+                usage_info = usage_info.model_dump()
+            elif usage_info is not None and not isinstance(usage_info, dict):
+                usage_info = dict(usage_info)
             return response.output_text, usage_info
         except openai.OpenAIError as e:
             print(type(e), e)
