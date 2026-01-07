@@ -22,7 +22,7 @@ from conversation import get_conv_template as get_conversation_template
 
 
 def get_answer(
-    question: dict, model: str, num_choices: int, max_tokens: int, answer_file: str,
+    question: dict, model: str, num_choices: int, max_tokens: int, reasoning_effort: str, answer_file: str,
     api_base: str = None, api_key: str = None, client=None,
 ):
     assert (
@@ -56,7 +56,7 @@ def get_answer(
             if api_base is not None:
                 api_dict["api_base"] = api_base
                 
-            content, usage = chat_completion_openai(model, conv, temperature, max_tokens, api_dict, client)
+            content, usage = chat_completion_openai(model, conv, temperature, max_tokens, api_dict, client, reasoning_effort)
             conv.update_last_message(content)
             turns.append({"content": content, "usage": usage})
 
@@ -128,6 +128,13 @@ if __name__ == "__main__":
     )
     parser.add_argument("--api-base", type=str, default=None)
     parser.add_argument("--api-key", type=str, default=None)
+    parser.add_argument(
+        "--reasoning_effort",
+        type=str,
+        default=None,
+        choices=["none", "minimal", "low", "medium", "high", "xhigh"],
+        help="Optional reasoning effort level for the model",
+    )
     args = parser.parse_args()
 
     openai_client = OpenAI(api_key=args.api_key, base_url=args.api_base) if args.api_key else OpenAI(base_url=args.api_base) if args.api_base else OpenAI()
@@ -155,6 +162,7 @@ if __name__ == "__main__":
                 args.model,
                 args.num_choices,
                 args.max_tokens,
+                args.reasoning_effort,
                 answer_file,
                 args.api_base,
                 args.api_key,

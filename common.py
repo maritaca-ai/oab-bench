@@ -472,7 +472,7 @@ def play_a_match_pair(match: MatchPair, output_file: str, client=None):
     return result
 
 
-def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, client=None):
+def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, client=None, reasoning_effort=None):
     if client is None:
         if api_dict is not None:
             client = OpenAI(**api_dict)
@@ -495,6 +495,9 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
                 "temperature": temperature,
             }
             
+            if reasoning_effort:
+                common_args["reasoning"] = {"effort": reasoning_effort}
+
             is_google_api = api_dict is not None and "generativelanguage.googleapis.com" in api_dict.get("api_base", "")
 
             # Use the 'max_completion_tokens' when the model starts with "o1"
