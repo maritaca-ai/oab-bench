@@ -245,14 +245,14 @@ def display_result_single(args):
             "display.float_format", lambda x: f"{x:_.6f}".rstrip("0").rstrip("."),
         ):
             main_token_usage_cols = [
-                "judge/input_tokens",
-                "judge/output_tokens",
-                "judge/output_tokens_details/reasoning_tokens",
-                "judge/input_tokens_details/cached_tokens",
-                "answer/input_tokens",
-                "answer/output_tokens",
-                "answer/output_tokens_details/reasoning_tokens",
-                "answer/input_tokens_details/cached_tokens",
+                "judge/prompt_tokens",
+                "judge/completion_tokens",
+                "judge/completion_tokens_details/reasoning_tokens",
+                "judge/prompt_tokens_details/cached_tokens",
+                "answer/prompt_tokens",
+                "answer/completion_tokens",
+                "answer/completion_tokens_details/reasoning_tokens",
+                "answer/prompt_tokens_details/cached_tokens",
             ]
             df_usage_pretty = df_token_usage.set_index("model", verify_integrity=True)
             df_usage_pretty = (
