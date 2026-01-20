@@ -66,7 +66,7 @@ def get_answer(
     ans = {
         "question_id": question["question_id"],
         "answer_id": shortuuid.uuid(),
-        "model_id": model,
+        "model_id": args.run_id,
         "choices": choices,
         "tstamp": time.time(),
     }
@@ -99,6 +99,7 @@ if __name__ == "__main__":
         help="The name of the benchmark question set.",
     )
     parser.add_argument("--answer-file", type=str, help="The output answer file.")
+    parser.add_argument("--run-id", type=str, required=True, help="Run ID used for output files and model identification.")
     parser.add_argument("--model", type=str, default="gpt-3.5-turbo")
     parser.add_argument(
         "--num-choices",
@@ -150,7 +151,7 @@ if __name__ == "__main__":
     if args.answer_file:
         answer_file = args.answer_file
     else:
-        answer_file = f"data/{args.bench_name}/model_answer/{args.model.split('/')[-1]}.jsonl"
+        answer_file = f"data/{args.bench_name}/model_answer/{args.run_id}.jsonl"
     print(f"Output to {answer_file}")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.parallel) as executor:
