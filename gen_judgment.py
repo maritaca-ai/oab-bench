@@ -128,7 +128,6 @@ def make_match_single(
 
             # For OAB-Bench v2: if we have multiple turns but multi_turn=False,
             # combine all turns into a single turn for evaluation (like magis-bench)
-            print('what')
             if ref_answers is not None and len(q["turns"]) > 1 and not multi_turn and q["category"] in OAB_CATS:
                 ref = ref_answers["guidelines"][q_id]
                 # Create copies
@@ -304,7 +303,7 @@ if __name__ == "__main__":
         judges = make_judge_single(args.judge_model, judge_prompts)
         play_a_match_func = play_a_match_single
         output_file = (
-            f"data/{args.bench_name}/model_judgment/{args.judge_model}_single.jsonl"
+            f"data/{args.bench_name}/model_judgment/{args.judge_model.replace('/', '_')}_single.jsonl" 
         )
         make_match_func = make_match_single
         baseline_model = None
@@ -312,7 +311,7 @@ if __name__ == "__main__":
         judges = make_judge_pairwise(args.judge_model, judge_prompts)
         play_a_match_func = play_a_match_pair
         output_file = (
-            f"data/{args.bench_name}/model_judgment/{args.judge_model}_pair.jsonl"
+            f"data/{args.bench_name}/model_judgment/{args.judge_model.replace('/', '_')}_pair.jsonl" 
         )
         if args.mode == "pairwise-all":
             make_match_func = make_match_all_pairs
