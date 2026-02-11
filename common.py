@@ -29,15 +29,24 @@ TIE_DELTA = 0.1
 NEED_REF_CATS = ["math", "reasoning", "coding", "arena-hard-200"]
 
 # Categories specific for oab_bench
-OAB_CATS = ["39_direito_administrativo", "39_direito_do_trabalho", 
-    "39_direito_civil", "39_direito_empresarial", "39_direito_penal", 
+OAB_CATS = ["39_direito_administrativo", "39_direito_do_trabalho",
+    "39_direito_civil", "39_direito_empresarial", "39_direito_penal",
     "39_direito_tributario", "39_direito_constitucional",
     "40_direito_administrativo", "40_direito_do_trabalho",
-    "40_direito_civil", "40_direito_empresarial", "40_direito_penal", 
+    "40_direito_civil", "40_direito_empresarial", "40_direito_penal",
     "40_direito_tributario", "40_direito_constitucional",
     "41_direito_administrativo", "41_direito_do_trabalho",
-    "41_direito_civil", "41_direito_empresarial", "41_direito_penal", 
-    "41_direito_tributario", "41_direito_constitucional"]
+    "41_direito_civil", "41_direito_empresarial", "41_direito_penal",
+    "41_direito_tributario", "41_direito_constitucional",
+    "42_direito_administrativo", "42_direito_do_trabalho",
+    "42_direito_civil", "42_direito_empresarial", "42_direito_penal",
+    "42_direito_tributario", "42_direito_constitucional",
+    "43_direito_administrativo", "43_direito_do_trabalho",
+    "43_direito_civil", "43_direito_empresarial", "43_direito_penal",
+    "43_direito_tributario", "43_direito_constitucional",
+    "44_direito_administrativo", "44_direito_do_trabalho",
+    "44_direito_civil", "44_direito_empresarial", "44_direito_penal",
+    "44_direito_tributario", "44_direito_constitucional"]
 
 # Extract scores from judgments
 two_score_pattern = re.compile("\[\[(\d+\.?\d*),\s?(\d+\.?\d*)\]\]")
