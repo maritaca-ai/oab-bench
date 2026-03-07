@@ -10,9 +10,10 @@ import os
 import re
 import time
 import uuid
-from typing import Optional
+from typing import Optional, List
 
 import openai
+from pydantic import BaseModel, Field
 from openai import OpenAI, AzureOpenAI
 import anthropic
 
@@ -71,6 +72,19 @@ reverse_model_map = {
     "model_1": "model_2",
     "model_2": "model_1",
 }
+
+
+# Pydantic models for structured judge output
+class ItemEvaluation(BaseModel):
+    item_id: str = Field(description="Identificador do item (ex: '1', '2', 'A', 'B')")
+    item_description: str = Field(description="Descrição do item avaliado conforme a tabela de distribuição de pontos")
+    analysis: str = Field(description="Análise detalhada comparando a resposta do candidato com o item do gabarito")
+    score: float = Field(description="Pontuação atribuída ao item")
+
+
+class JudgmentResult(BaseModel):
+    items: List[ItemEvaluation] = Field(description="Lista de itens avaliados conforme a tabela de distribuição de pontos")
+    total_score: float = Field(description="Nota total do candidato (soma das pontuações de todos os itens)")
 
 
 @dataclasses.dataclass
@@ -199,10 +213,10 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False, clie
     conv.append_message(conv.roles[0], user_prompt)
     conv.append_message(conv.roles[1], None)
 
-    if model.startswith("gpt-"):
-        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=2048, client=client)
-    elif model.startswith("gemini"):
-        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=20000, client=client)
+    if "gpt-" in model:
+        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=None, client=client)
+    elif "gemini" in model:
+        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=None, client=client)
     elif any(model.startswith(m) for m in ["o1", "o3"]):
         # With o1 models and newer, developer messages replace the previous system messages.
         conv.messages[0][0] = "developer"
@@ -240,6 +254,63 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False, clie
     return rating, user_prompt, judgment, judge_usage
 
 
+def run_judge_single_structured(question, answer, judge, ref_answer, multi_turn=False, client=None):
+    """Run a single judge evaluation with structured output (Pydantic)."""
+    kwargs = {}
+    model = judge.model_name
+    answer_turns = answer["choices"][0]["turns"]
+    answer_1 = _turn_content(answer_turns[0])
+
+    ref_turns = ref_answer["choices"][0]["turns"] if ref_answer is not None else None
+    if ref_turns is not None:
+        kwargs["ref_answer_1"] = _turn_content(ref_turns[0])
+
+    # for exams
+    max_value = None
+    if question.get("values", None):
+        index = 0
+        kwargs["value"] = question["values"][index]
+        max_value = question["values"][index]
+
+    user_prompt = judge.prompt_template["prompt_template"].format(
+        question=question["turns"][0],
+        answer=answer_1,
+        **kwargs,
+    )
+
+    system_prompt = judge.prompt_template["system_prompt"]
+    conv = get_conversation_template("chatgpt")
+    conv.set_system_message(system_prompt)
+    conv.append_message(conv.roles[0], user_prompt)
+    conv.append_message(conv.roles[1], None)
+
+    parsed, judgment, judge_usage = chat_completion_openai_structured(
+        model, conv, temperature=0, max_tokens=None,
+        response_format=JudgmentResult, client=client,
+    )
+
+    if parsed is None:
+        return -1, -1, [], user_prompt, judgment, judge_usage
+
+    # Recalculate score from items
+    items_data = [item.model_dump() for item in parsed.items]
+    calculated_score = sum(item.score for item in parsed.items)
+    model_score = parsed.total_score
+
+    # Clamp to [0, max_value]
+    if max_value is not None:
+        calculated_score = max(0, min(calculated_score, max_value))
+
+    # Warn if divergence
+    if abs(calculated_score - model_score) > 0.01:
+        print(
+            f"  [WARN] Score divergence for {question['question_id']}: "
+            f"calculated={calculated_score:.2f}, model={model_score:.2f}"
+        )
+
+    return calculated_score, model_score, items_data, user_prompt, judgment, judge_usage
+
+
 def play_a_match_single(match: MatchSingle, output_file: str, client=None):
     question, model, answer, judge, ref_answer, multi_turn = (
         match.question,
@@ -250,7 +321,34 @@ def play_a_match_single(match: MatchSingle, output_file: str, client=None):
         match.multi_turn,
     )
 
-    if judge.prompt_template["type"] == "single":
+    if judge.prompt_template["type"] == "single" and judge.prompt_template.get("output_format") == "structured":
+        score, model_score, items_data, user_prompt, judgment, judge_usage = run_judge_single_structured(
+            question, answer, judge, ref_answer, multi_turn=multi_turn, client=client
+        )
+
+        question_id = question["question_id"]
+        turn = 1 if not multi_turn else 2
+        result = {
+            "question_id": question_id,
+            "model": model,
+            "answer_id": answer["answer_id"],
+            "judge": (judge.model_name, judge.prompt_template["name"]),
+            "user_prompt": user_prompt,
+            "judgment": judgment,
+            "score": score,
+            "model_score": model_score,
+            "correct_sum": True if abs(score - model_score) <= 0.01 else False,
+            # "items": items_data,
+            "turn": turn,
+            "tstamp": time.time(),
+            "judge_usage": judge_usage,
+        }
+        print(
+            f"question: {question_id}, turn: {turn}, model: {model}, "
+            f"score: {score}, model_score: {model_score}, "
+            f"judge: {(judge.model_name, judge.prompt_template['name'])}"
+        )
+    elif judge.prompt_template["type"] == "single":
         score, user_prompt, judgment, judge_usage = run_judge_single(
             question, answer, judge, ref_answer, multi_turn=multi_turn, client=client
         )
@@ -326,8 +424,8 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
     conv.append_message(conv.roles[0], user_prompt)
     conv.append_message(conv.roles[1], None)
 
-    if model.startswith("gpt-"):
-        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=2048, client=client)
+    if "gpt-" in model:
+        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=None, client=client)
     elif any(model.startswith(m) for m in ["o1", "o3"]):
         # With o1 models and newer, developer messages replace the previous system messages.
         conv.messages[0][0] = "developer"
@@ -514,7 +612,7 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
             # Use the 'max_completion_tokens' when the model starts with "o1"
             if any(model.startswith(m) for m in ["o1", "o3"]):
                 response = client.chat.completions.create(**common_args, max_completion_tokens=max_tokens)
-            elif model.startswith("gpt-5"):
+            elif "gpt-5" in model:
                 common_args["temperature"] = 1  # only default value of 1 is supported
                 response = client.chat.completions.create(**common_args)
             elif is_google_api:
@@ -533,6 +631,42 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
             time.sleep(API_RETRY_SLEEP)
 
     return API_ERROR_OUTPUT, None
+
+
+def chat_completion_openai_structured(model, conv, temperature, max_tokens, response_format, client=None):
+    """Like chat_completion_openai but returns structured output via Pydantic."""
+    if client is None:
+        client = OpenAI()
+
+    for _ in range(API_MAX_RETRY):
+        try:
+            messages = conv.to_openai_api_messages()
+            common_args = {
+                'model': model,
+                'messages': messages,
+                'response_format': response_format,
+            }
+            if temperature is not None:
+                common_args["temperature"] = temperature
+            if max_tokens is not None:
+                common_args["max_completion_tokens"] = max_tokens
+
+            response = client.beta.chat.completions.parse(**common_args)
+
+            usage_info = response.usage
+            if usage_info is not None and hasattr(usage_info, "model_dump"):
+                usage_info = usage_info.model_dump()
+            elif usage_info is not None and not isinstance(usage_info, dict):
+                usage_info = dict(usage_info)
+
+            parsed = response.choices[0].message.parsed
+            content = response.choices[0].message.content
+            return parsed, content, usage_info
+        except openai.OpenAIError as e:
+            print(type(e), e)
+            time.sleep(API_RETRY_SLEEP)
+
+    return None, API_ERROR_OUTPUT, None
 
 
 def chat_completion_openai_azure(model, conv, temperature, max_tokens, api_dict=None, client=None):
