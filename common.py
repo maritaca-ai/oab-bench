@@ -214,9 +214,9 @@ def run_judge_single(question, answer, judge, ref_answer, multi_turn=False, clie
     conv.append_message(conv.roles[1], None)
 
     if "gpt-" in model:
-        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=None, client=client)
+        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=None, client=client, reasoning_effort="high")
     elif "gemini" in model:
-        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=None, client=client)
+        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=None, client=client, reasoning_effort="high")
     elif any(model.startswith(m) for m in ["o1", "o3"]):
         # With o1 models and newer, developer messages replace the previous system messages.
         conv.messages[0][0] = "developer"
@@ -286,7 +286,7 @@ def run_judge_single_structured(question, answer, judge, ref_answer, multi_turn=
 
     parsed, judgment, judge_usage = chat_completion_openai_structured(
         model, conv, temperature=0, max_tokens=None,
-        response_format=JudgmentResult, client=client,
+        response_format=JudgmentResult, client=client, reasoning_effort="high",
     )
 
     if parsed is None:
@@ -425,7 +425,7 @@ def run_judge_pair(question, answer_a, answer_b, judge, ref_answer, multi_turn=F
     conv.append_message(conv.roles[1], None)
 
     if "gpt-" in model:
-        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=None, client=client)
+        judgment, judge_usage = chat_completion_openai(model, conv, temperature=0, max_tokens=None, client=client, reasoning_effort="high")
     elif any(model.startswith(m) for m in ["o1", "o3"]):
         # With o1 models and newer, developer messages replace the previous system messages.
         conv.messages[0][0] = "developer"
@@ -633,7 +633,7 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
     return API_ERROR_OUTPUT, None
 
 
-def chat_completion_openai_structured(model, conv, temperature, max_tokens, response_format, client=None):
+def chat_completion_openai_structured(model, conv, temperature, max_tokens, response_format, client=None, reasoning_effort=None):
     """Like chat_completion_openai but returns structured output via Pydantic."""
     if client is None:
         client = OpenAI()
@@ -646,10 +646,14 @@ def chat_completion_openai_structured(model, conv, temperature, max_tokens, resp
                 'messages': messages,
                 'response_format': response_format,
             }
-            if temperature is not None:
+            if "gpt-5" in model:
+                common_args["temperature"] = 1  # only default value of 1 is supported
+            elif temperature is not None:
                 common_args["temperature"] = temperature
             if max_tokens is not None:
                 common_args["max_completion_tokens"] = max_tokens
+            if reasoning_effort is not None:
+                common_args["reasoning_effort"] = reasoning_effort
 
             response = client.beta.chat.completions.parse(**common_args)
 
