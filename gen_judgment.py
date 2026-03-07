@@ -222,6 +222,7 @@ def make_judge_single(judge_model, judge_prompts):
         multi_turn=True,
     )
     judges["oab"] = Judge(judge_model, judge_prompts.get("single-oab-v1", {}), ref_based=True)
+    judges["oab-structured"] = Judge(judge_model, judge_prompts.get("single-oab-v2", {}), ref_based=True)
     return judges
 
 
@@ -268,6 +269,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--api-base", type=str, default="https://api.openai.com/v1")
     parser.add_argument("--api-key", type=str, required=True)
+    parser.add_argument(
+        "--structured", action="store_true",
+        help="Use structured output (Pydantic) for OAB judgments.",
+    )
     args = parser.parse_args()
 
     openai_client = OpenAI(api_key=args.api_key, base_url=args.api_base)
@@ -356,11 +361,12 @@ if __name__ == "__main__":
         ref_answers,
         multi_turn=True,
     )
+    oab_judge_key = "oab-structured" if args.structured else "oab"
     matches += make_match_func(
         question_oab,
         models,
         model_answers,
-        judges["oab"],
+        judges[oab_judge_key],
         baseline_model,
         ref_answers,
     )
