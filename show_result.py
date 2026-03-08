@@ -386,7 +386,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--bench-name", type=str, default="oab_bench")
     parser.add_argument("--input-file", type=str)
-    parser.add_argument("--judge-model", type=str, default="o1-2024-12-17")
+    parser.add_argument("--judge-model", type=str, default="gpt-5.2")
     parser.add_argument("--baseline-model", type=str, default="gpt-3.5-turbo")
     parser.add_argument(
         "--model-list",

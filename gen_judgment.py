@@ -116,6 +116,7 @@ def make_match_single(
     ref_answers=None,
     multi_turn=False,
 ):
+    import copy
     matches = []
     for q in questions:
         if multi_turn and len(q["turns"]) != 2:
@@ -124,7 +125,61 @@ def make_match_single(
             q_id = q["question_id"]
             m = models[i]
             a = model_answers[m][q_id]
-            if ref_answers is not None:
+
+            # For OAB-Bench v2: if we have multiple turns but multi_turn=False,
+            # combine all turns into a single turn for evaluation (like magis-bench)
+            if ref_answers is not None and len(q["turns"]) > 1 and not multi_turn and q["category"] in OAB_CATS:
+                ref = ref_answers["guidelines"][q_id]
+                # Create copies
+                copied_question = copy.deepcopy(q)
+                copied_answer = copy.deepcopy(a)
+                copied_ref = copy.deepcopy(ref)
+
+                # Combine all turns into a single turn with item labels (A, B, C, etc.)
+                question_parts = []
+                answer_parts = []
+                ref_parts = []
+
+                if 'statement' in q:
+                    question_parts.append(q['statement'])
+
+                for idx, turn in enumerate(q["turns"]):
+                    if turn.strip():  # Only include non-empty turns
+                        item_label = chr(65 + idx)  # A, B, C, etc.
+                        question_parts.append(f"# {item_label}:\n{turn}")
+
+                        answer_turn = a['choices'][0]['turns'][idx]
+                        answer_content = answer_turn if isinstance(answer_turn, str) else answer_turn.get("content", "")
+                        answer_parts.append(f"# {item_label}:\n{answer_content}")
+
+                        ref_turn = ref['choices'][0]['turns'][idx]
+                        ref_content = ref_turn if isinstance(ref_turn, str) else ref_turn.get("content", "")
+                        ref_parts.append(f"# {item_label}:\n{ref_content}")
+
+                combined_question = "\n\n".join(question_parts)
+                combined_answer = "\n\n".join(answer_parts)
+                combined_ref = "\n\n".join(ref_parts)
+
+                # Replace turns with combined version
+                copied_question["turns"] = [combined_question]
+                copied_answer["choices"][0]["turns"] = [combined_answer]
+                copied_ref["choices"][0]["turns"] = [combined_ref]
+
+                # Sum up all values for the total score
+                if "values" in copied_question:
+                    copied_question["values"] = [sum(copied_question["values"])]
+
+                matches.append(
+                    MatchSingle(
+                        copied_question,
+                        m,
+                        copied_answer,
+                        judge,
+                        ref_answer=copied_ref,
+                        multi_turn=False
+                    )
+                )
+            elif ref_answers is not None:
                 ref = ref_answers["guidelines"][q_id]
                 matches.append(
                     MatchSingle(
@@ -150,12 +205,6 @@ def make_judge_pairwise(judge_model, judge_prompts):
         multi_turn=True,
     )
     judges["oab"] = Judge(judge_model, judge_prompts.get("single-oab-v1", {}), ref_based=True)
-    judges["oab-mt"] = Judge(
-        judge_model,
-        judge_prompts.get("single-oab-v1-multi-turn", {}),
-        ref_based=True,
-        multi_turn=True
-    )
     return judges
 
 
@@ -173,12 +222,7 @@ def make_judge_single(judge_model, judge_prompts):
         multi_turn=True,
     )
     judges["oab"] = Judge(judge_model, judge_prompts.get("single-oab-v1", {}), ref_based=True)
-    judges["oab-mt"] = Judge(
-        judge_model,
-        judge_prompts.get("single-oab-v1-multi-turn", {}),
-        ref_based=True,
-        multi_turn=True
-    )
+    judges["oab-structured"] = Judge(judge_model, judge_prompts.get("single-oab-v2", {}), ref_based=True)
     return judges
 
 
@@ -196,7 +240,7 @@ if __name__ == "__main__":
         default="data/judge_prompts.jsonl",
         help="The file of judge prompts.",
     )
-    parser.add_argument("--judge-model", type=str, default="gpt-4")
+    parser.add_argument("--judge-model", type=str, default="gpt-5.2")
     parser.add_argument("--baseline-model", type=str, default="gpt-3.5-turbo")
     parser.add_argument(
         "--mode",
@@ -225,6 +269,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--api-base", type=str, default="https://api.openai.com/v1")
     parser.add_argument("--api-key", type=str, required=True)
+    parser.add_argument(
+        "--structured", action="store_true",
+        help="Use structured output (Pydantic) for OAB judgments.",
+    )
     args = parser.parse_args()
 
     openai_client = OpenAI(api_key=args.api_key, base_url=args.api_base)
@@ -236,10 +284,10 @@ if __name__ == "__main__":
     # Load questions
     questions = load_questions(question_file, None, None)
 
-    # Exams: if the question has a statement, add it as a prefix in the first turn
-    for q in questions:
-        if 'statement' in q:
-            q['turns'][0] = q['statement'] + '\n' + q['turns'][0]
+    # # Exams: if the question has a statement, add it as a prefix in the first turn
+    # for q in questions:
+    #     if 'statement' in q:
+    #         q['turns'][0] = q['statement'] + '\n' + q['turns'][0]
 
     # Load answers
     model_answers = load_model_answers(answer_dir)
@@ -260,7 +308,7 @@ if __name__ == "__main__":
         judges = make_judge_single(args.judge_model, judge_prompts)
         play_a_match_func = play_a_match_single
         output_file = (
-            f"data/{args.bench_name}/model_judgment/{args.judge_model}_single.jsonl"
+            f"data/{args.bench_name}/model_judgment/{args.judge_model.replace('/', '_')}_single.jsonl" 
         )
         make_match_func = make_match_single
         baseline_model = None
@@ -268,7 +316,7 @@ if __name__ == "__main__":
         judges = make_judge_pairwise(args.judge_model, judge_prompts)
         play_a_match_func = play_a_match_pair
         output_file = (
-            f"data/{args.bench_name}/model_judgment/{args.judge_model}_pair.jsonl"
+            f"data/{args.bench_name}/model_judgment/{args.judge_model.replace('/', '_')}_pair.jsonl" 
         )
         if args.mode == "pairwise-all":
             make_match_func = make_match_all_pairs
@@ -313,22 +361,14 @@ if __name__ == "__main__":
         ref_answers,
         multi_turn=True,
     )
+    oab_judge_key = "oab-structured" if args.structured else "oab"
     matches += make_match_func(
         question_oab,
         models,
         model_answers,
-        judges["oab"],
+        judges[oab_judge_key],
         baseline_model,
         ref_answers,
-    )
-    matches += make_match_func(
-        question_oab,
-        models,
-        model_answers,
-        judges["oab-mt"],
-        baseline_model,
-        ref_answers,
-        multi_turn=True,
     )
 
     match_stat = {}

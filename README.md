@@ -1,21 +1,27 @@
 # OAB-Bench
-| [**Paper**](https://arxiv.org/abs/2504.21202) | [**Dataset**](https://huggingface.co/datasets/maritaca-ai/oab-bench) |
+| [**Paper**](https://dl.acm.org/doi/10.1145/3769126.3769227) | [**Dataset**](https://huggingface.co/datasets/maritaca-ai/oab-bench) |
 
-OAB-Bench is a benchmark for evaluating Large Language Models (LLMs) on legal writing tasks, specifically designed for the Brazilian Bar Examination (OAB). The benchmark comprises 105 questions across seven areas of law from recent editions of the exam.
+OAB-Bench is a benchmark for evaluating Large Language Models (LLMs) on legal writing tasks from the Brazilian Bar Examination (OAB) Phase 2. The benchmark comprises 210 questions across seven areas of law from six editions (39–44) of the exam.
 
-- OAB-Bench evaluates LLMs on their ability to write legal documents and answer discursive questions
-- The benchmark includes comprehensive evaluation guidelines used by human examiners
-- Results show that frontier models like Claude-3.5 Sonnet can achieve passing grades (≥6.0) in most exams
+- Evaluates LLMs on their ability to write legal documents and answer discursive questions
+- Includes comprehensive evaluation guidelines used by human examiners
+- Supports two judge output formats: **structured** (recommended) and non-structured
 - The evaluation pipeline uses LLMs as automated judges, achieving strong correlation with human scores
 
+> **Looking for v1?** The original release (105 questions, exams 39–41) is available at tag [`v1.0`](https://github.com/maritaca-ai/oab-bench/tree/v1.0).
+
 ## News
-- [2025/04] 🔥 Paper accepted at ICAIL 2025 (International Conference on Artificial Intelligence and Law)
+- [2026/03] v2 release: added exams 42–44, structured output evaluation, 12 models evaluated
+- [2025/04] Paper accepted at ICAIL 2025 (International Conference on Artificial Intelligence and Law)
 - [2025/04] Initial release of the benchmark and evaluation pipeline
 
 ## Contents
 - [Installation](#installation)
 - [Usage](#usage)
 - [Results](#results)
+- [Structured vs Non-Structured Evaluation](#structured-vs-non-structured-evaluation)
+- [Evaluation Cost](#evaluation-cost)
+- [Structured Output Format](#structured-output-format)
 - [Citation](#citation)
 
 ## Installation
@@ -34,94 +40,179 @@ pip install -e .
 
 ## Usage
 
-The benchmark evaluation pipeline consists of three main scripts:
+The benchmark evaluation pipeline consists of three steps:
 
-1. Generate model responses for a specific model:
+### 1. Generate model responses
 
-Sabiá-3.1:
+Sabiá-4:
 ```bash
 python3 -m gen_api_answer \
-    --model sabia-3.1-2025-05-08 \
+    --model sabia-4-2026-01-08 \
     --api-base "https://chat.maritaca.ai/api" \
     --api-key "your-api-key-here" \
     --parallel 10
 ```
 
-GPT-4o:
+GPT-5.2:
 ```bash
 python3 -m gen_api_answer \
-    --model gpt-4o-2024-08-06 \
+    --model gpt-5.2 \
     --api-key "your-openai-key" \
     --parallel 10
 ```
 
-Gemini-2.5-flash:
+Gemini-3-pro-preview:
 ```bash
 python3 -m gen_api_answer \
-    --model gemini-2.5-flash \
+    --model gemini-3-pro-preview \
     --api-base "https://generativelanguage.googleapis.com/v1beta/openai/" \
     --api-key "your-google-key" \
     --parallel 10  # Google models ignore --max-tokens
 ```
 
-2. Generate automated evaluations using an LLM judge:
+### 2. Generate automated evaluations using an LLM judge
+
+We recommend using GPT-5.2 as the judge model with **structured output** (`--structured`). Judgments are generated with `reasoning_effort="high"`.
+
+**Structured output (recommended):**
 ```bash
 python3 -m gen_judgment \
-    --judge-model o1-2024-12-17 \
-    --model-list sabia-3-2024-12-11 \
+    --judge-model gpt-5.2 \
+    --model-list sabia-4-2026-01-06 \
+    --api-base "https://api.openai.com/v1" \
+    --api-key "your-openai-key" \
+    --parallel 10 \
+    --structured
+```
+
+Non-structured (legacy):
+```bash
+python3 -m gen_judgment \
+    --judge-model gpt-5.2 \
+    --model-list sabia-4-2026-01-06 \
     --api-base "https://api.openai.com/v1" \
     --api-key "your-openai-key" \
     --parallel 10
 ```
 
-3. Visualize results:
+### 3. Visualize results
+
 ```bash
-python show_result.py --bench-name oab_bench --judge-model o1-2024-12-17
+python show_result.py --bench-name oab_bench --judge-model gpt-5.2
 ```
 
 ## Results
 
-Our evaluation of four LLMs on OAB-Bench shows:
+Evaluation of 12 LLMs on OAB-Bench using GPT-5.2 as judge with structured output:
 
-| Model | Average Score | Passing Rate | Best Area |
-| --- | --- | --- | --- |
-| gemini-2.5-pro | 9.01 | 100% | Civil Law (9.70) |
-| o3 | 8.88 | 100% | Administrative Law (9.60) |
-| gemini-2.5-flash | 8.48 | 100% | Criminal Law (9.15) |
-| Claude-3.5 Sonnet | 7.93 | 100% | Constitutional Law (8.43) |
-| Sabiá-3.1 | 7.10 | 76% | Civil Law (7.88) |
-| GPT-4o | 6.87 | 86% | Civil Law (7.42) |
-| Sabiá-3 | 6.55 | 71% | Labor Law (7.17) |
-| Qwen2.5-72B | 5.21 | 24% | Civil Law (5.48) |
+| Model | Average Score | Passing Rate |
+| --- | --- | --- |
+| Gemini-3.1-Pro | 9.35 | 42/42 (100%) |
+| Claude Opus 4.6 | 8.80 | 42/42 (100%) |
+| GPT-5.2 | 8.66 | 42/42 (100%) |
+| Claude Sonnet 4.6 | 8.28 | 41/42 (98%) |
+| Sabiá-4 | 8.00 | 42/42 (100%) |
+| Gemini-3.1-Flash-Lite | 7.61 | 38/42 (90%) |
+| Sabiazinho-4 | 7.02 | 35/42 (83%) |
+| Sabiá-3.1 | 6.94 | 31/42 (74%) |
+| Qwen3.5-397B | 6.76 | 32/42 (76%) |
+| GPT-5-Mini | 6.48 | 29/42 (69%) |
+| Qwen3.5-35B | 6.26 | 26/42 (62%) |
+| Sabiazinho-3 | 6.16 | 26/42 (62%) |
 
-The LLM judge (o1) shows strong correlation with human scores when evaluating approved exams, with Mean Absolute Error (MAE) ranging from 0.04 to 0.28 across different law areas.
+Passing rate indicates the number of exams (out of 42) where the model scored ≥ 6.0. Each exam corresponds to one of the seven areas of law in a given edition.
 
-### Average scores given by different LLM judges
+## Structured vs Non-Structured Evaluation
 
-| Model | o1 judge | o3 judge | gemini-2.5-pro judge |
-| --- | --- | --- | --- |
-| gemini-2.5-pro | 9.01 | 8.75 | 8.73 |
-| o3 | 8.88 | 8.52 | 8.52 |
-| gemini-2.5-flash | 8.48 | 8.22 | 8.25 |
-| Claude-3.5 Sonnet | 7.93 | 7.70 | 7.57 |
-| Sabiá-3.1 | 7.10 | 6.71 | 6.85 |
-| GPT-4o | 6.87 | 6.73 | 6.53 |
-| Sabiá-3 | 6.55 | 6.36 | 6.02 |
-| Qwen2.5-72B | 5.21 | 4.99 | 4.63 |
+We recommend the **structured** evaluation format for two reasons:
 
-The table above presents a comparison of scores given by different judges to various language models. It is observed that for a given model, there is a relatively low variation in scores provided by judges o1, o3, and gemini-2.5-pro. Additionally, all three judges produced (almost) the same ranking order for the models.
+1. **Auditable**: each scoring item produces a structured JSON object with `item_id`, `item_description`, `analysis`, and `score`, making it easy to inspect and audit individual judgments.
+2. **No arithmetic errors**: the total score is computed programmatically by summing item scores, rather than being extracted from free text via regex — eliminating the risk of the judge model making arithmetic mistakes.
 
-The consistency in scores and model ranking across judges suggests that the evaluation criteria are well-defined and that performance differences among models are clear and recognizable, regardless of the judge. This gives us confidence that the applied methodology yields reliable and valid results.
+Comparative results between the two formats (GPT-5.2 judge):
+
+| Model | Structured | Non-Structured |
+| --- | --- | --- |
+| Gemini-3.1-Pro | 9.35 | 9.36 |
+| Claude Opus 4.6 | 8.80 | 8.77 |
+| GPT-5.2 | 8.66 | 8.63 |
+| Claude Sonnet 4.6 | 8.28 | 8.27 |
+| Sabiá-4 | 8.00 | 7.95 |
+| Gemini-3.1-Flash-Lite | 7.61 | 7.65 |
+| Sabiazinho-4 | 7.02 | 6.95 |
+| Sabiá-3.1 | 6.94 | 6.90 |
+| Qwen3.5-397B | 6.76 | 6.67 |
+| GPT-5-Mini | 6.48 | 6.54 |
+| Qwen3.5-35B | 6.26 | 6.19 |
+| Sabiazinho-3 | 6.16 | 6.10 |
+
+| | Structured | Non-Structured |
+| --- | --- | --- |
+| **Passing rate** | | |
+| Gemini-3.1-Pro | 42/42 | 42/42 |
+| Claude Opus 4.6 | 42/42 | 42/42 |
+| GPT-5.2 | 42/42 | 42/42 |
+| Claude Sonnet 4.6 | 41/42 | 42/42 |
+| Sabiá-4 | 42/42 | 42/42 |
+| Gemini-3.1-Flash-Lite | 38/42 | 40/42 |
+| Sabiazinho-4 | 35/42 | 36/42 |
+| Qwen3.5-397B | 32/42 | 32/42 |
+| Sabiá-3.1 | 31/42 | 31/42 |
+| GPT-5-Mini | 29/42 | 28/42 |
+| Qwen3.5-35B | 26/42 | 23/42 |
+| Sabiazinho-3 | 26/42 | 26/42 |
+
+Scores are nearly identical across formats, with the same model ranking. The structured format is slightly more expensive (~8%) but provides full traceability of the judge's reasoning.
+
+## Evaluation Cost
+
+Cost breakdown for evaluating all 12 models on 210 questions using GPT-5.2 as judge:
+
+| Metric | Structured | Non-Structured |
+| --- | --- | --- |
+| Total cost | $62.80 | $57.92 |
+| Cost per model | $5.23 | $4.83 |
+| Prompt tokens | 7,486,565 | 6,617,165 |
+| Completion tokens | 3,634,024 | 3,363,291 |
+
+Pricing based on GPT-5.2 rates: $1.75/1M input tokens, $0.175/1M cached input tokens, $14.00/1M output tokens.
+
+## Structured Output Format
+
+When using `--structured`, the judge produces a `JudgmentResult` object (Pydantic) with the following schema:
+
+```python
+class ItemEvaluation(BaseModel):
+    item_id: str            # Item identifier (e.g., '1', '2', 'A', 'B')
+    item_description: str   # Item description from the scoring table
+    analysis: str           # Detailed analysis comparing the candidate's answer with the reference
+    score: float            # Score assigned to the item
+
+class JudgmentResult(BaseModel):
+    items: List[ItemEvaluation]  # List of evaluated items
+    total_score: float           # Total score (sum of all item scores)
+```
+
+Each question's scoring table items are evaluated independently, and the `total_score` is the sum of all `score` fields — ensuring arithmetic correctness.
 
 ## Citation
 
 If you find this work helpful, please cite our paper:
 
-```
-@inproceedings{pires2025automatic,
-  title={Automatic Legal Writing Evaluation of LLMs},
-  author={Pires, Ramon and Malaquias Junior, Roseval and Nogueira, Rodrigo},
-  booktitle={Proceedings of the International Conference on Artificial Intelligence and Law (ICAIL)},
-  year={2025}
+```bibtex
+@inproceedings{10.1145/3769126.3769227,
+  author = {Pires, Ramon and Malaquias Junior, Roseval and Nogueira, Rodrigo},
+  title = {Automatic Legal Writing Evaluation of LLMs},
+  year = {2026},
+  isbn = {9798400719394},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/3769126.3769227},
+  doi = {10.1145/3769126.3769227},
+  booktitle = {Proceedings of the Twentieth International Conference on Artificial Intelligence and Law},
+  pages = {420--424},
+  numpages = {5},
+  keywords = {Open-ended Tasks, Legal Writing, Automatic Evaluation, Brazilian Bar Exam, LLM Judge, Large Language Models},
+  series = {ICAIL '25}
 }
 ```
