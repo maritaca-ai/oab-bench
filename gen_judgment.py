@@ -181,9 +181,12 @@ def make_match_single(
                 )
             elif ref_answers is not None:
                 ref = ref_answers["guidelines"][q_id]
+                q_copy = copy.deepcopy(q)
+                if 'statement' in q_copy:
+                    q_copy['turns'][0] = q_copy['statement'] + ('\n' + q_copy['turns'][0]).rstrip()
                 matches.append(
                     MatchSingle(
-                        dict(q), m, a, judge, ref_answer=ref, multi_turn=multi_turn
+                        q_copy, m, a, judge, ref_answer=ref, multi_turn=multi_turn
                     )
                 )
             else:
