@@ -107,18 +107,18 @@ Evaluation of 12 LLMs on OAB-Bench using GPT-5.2 as judge with structured output
 
 | Model | Average Score | Passing Rate |
 | --- | --- | --- |
-| Gemini-3.1-Pro | 9.35 | 42/42 (100%) |
-| Claude Opus 4.6 | 8.80 | 42/42 (100%) |
+| Gemini-3.1-Pro | 9.39 | 42/42 (100%) |
+| Claude Opus 4.6 | 8.82 | 42/42 (100%) |
 | GPT-5.2 | 8.66 | 42/42 (100%) |
-| Claude Sonnet 4.6 | 8.28 | 41/42 (98%) |
-| Sabiá-4 | 8.00 | 42/42 (100%) |
-| Gemini-3.1-Flash-Lite | 7.61 | 38/42 (90%) |
-| Sabiazinho-4 | 7.02 | 35/42 (83%) |
-| Sabiá-3.1 | 6.94 | 31/42 (74%) |
-| Qwen3.5-397B | 6.76 | 32/42 (76%) |
-| GPT-5-Mini | 6.48 | 29/42 (69%) |
-| Qwen3.5-35B | 6.26 | 26/42 (62%) |
-| Sabiazinho-3 | 6.16 | 26/42 (62%) |
+| Claude Sonnet 4.6 | 8.27 | 42/42 (100%) |
+| Sabiá-4 | 7.96 | 42/42 (100%) |
+| Gemini-3.1-Flash-Lite | 7.60 | 39/42 (93%) |
+| Sabiazinho-4 | 6.91 | 34/42 (81%) |
+| Sabiá-3.1 | 6.91 | 35/42 (83%) |
+| Qwen3.5-397B | 6.69 | 31/42 (74%) |
+| GPT-5-Mini | 6.52 | 31/42 (74%) |
+| Qwen3.5-35B | 6.17 | 24/42 (57%) |
+| Sabiazinho-3 | 6.12 | 26/42 (62%) |
 
 Passing rate indicates the number of exams (out of 42) where the model scored ≥ 6.0. Each exam corresponds to one of the seven areas of law in a given edition.
 
@@ -133,18 +133,18 @@ Comparative results between the two formats (GPT-5.2 judge):
 
 | Model | Structured | Non-Structured |
 | --- | --- | --- |
-| Gemini-3.1-Pro | 9.35 | 9.36 |
-| Claude Opus 4.6 | 8.80 | 8.77 |
-| GPT-5.2 | 8.66 | 8.63 |
-| Claude Sonnet 4.6 | 8.28 | 8.27 |
-| Sabiá-4 | 8.00 | 7.95 |
-| Gemini-3.1-Flash-Lite | 7.61 | 7.65 |
-| Sabiazinho-4 | 7.02 | 6.95 |
-| Sabiá-3.1 | 6.94 | 6.90 |
-| Qwen3.5-397B | 6.76 | 6.67 |
-| GPT-5-Mini | 6.48 | 6.54 |
-| Qwen3.5-35B | 6.26 | 6.19 |
-| Sabiazinho-3 | 6.16 | 6.10 |
+| Gemini-3.1-Pro | 9.39 | 9.34 |
+| Claude Opus 4.6 | 8.82 | 8.80 |
+| GPT-5.2 | 8.66 | 8.61 |
+| Claude Sonnet 4.6 | 8.27 | 8.23 |
+| Sabiá-4 | 7.96 | 7.92 |
+| Gemini-3.1-Flash-Lite | 7.60 | 7.57 |
+| Sabiazinho-4 | 6.91 | 6.92 |
+| Sabiá-3.1 | 6.91 | 6.89 |
+| Qwen3.5-397B | 6.69 | 6.67 |
+| GPT-5-Mini | 6.52 | 6.50 |
+| Qwen3.5-35B | 6.17 | 6.18 |
+| Sabiazinho-3 | 6.12 | 6.07 |
 
 | | Structured | Non-Structured |
 | --- | --- | --- |
@@ -152,14 +152,14 @@ Comparative results between the two formats (GPT-5.2 judge):
 | Gemini-3.1-Pro | 42/42 | 42/42 |
 | Claude Opus 4.6 | 42/42 | 42/42 |
 | GPT-5.2 | 42/42 | 42/42 |
-| Claude Sonnet 4.6 | 41/42 | 42/42 |
+| Claude Sonnet 4.6 | 42/42 | 42/42 |
 | Sabiá-4 | 42/42 | 42/42 |
-| Gemini-3.1-Flash-Lite | 38/42 | 40/42 |
-| Sabiazinho-4 | 35/42 | 36/42 |
-| Qwen3.5-397B | 32/42 | 32/42 |
-| Sabiá-3.1 | 31/42 | 31/42 |
-| GPT-5-Mini | 29/42 | 28/42 |
-| Qwen3.5-35B | 26/42 | 23/42 |
+| Gemini-3.1-Flash-Lite | 39/42 | 39/42 |
+| Sabiazinho-4 | 34/42 | 37/42 |
+| Sabiá-3.1 | 35/42 | 32/42 |
+| Qwen3.5-397B | 31/42 | 31/42 |
+| GPT-5-Mini | 31/42 | 27/42 |
+| Qwen3.5-35B | 24/42 | 25/42 |
 | Sabiazinho-3 | 26/42 | 26/42 |
 
 Scores are nearly identical across formats, with the same model ranking. The structured format is slightly more expensive (~8%) but provides full traceability of the judge's reasoning.
@@ -170,10 +170,10 @@ Cost breakdown for evaluating all 12 models on 210 questions using GPT-5.2 as ju
 
 | Metric | Structured | Non-Structured |
 | --- | --- | --- |
-| Total cost | $62.80 | $57.92 |
-| Cost per model | $5.23 | $4.83 |
-| Prompt tokens | 7,486,565 | 6,617,165 |
-| Completion tokens | 3,634,024 | 3,363,291 |
+| Total cost | $63.85 | $58.28 |
+| Cost per model | $5.32 | $4.86 |
+| Prompt tokens | 7,805,993 | 6,936,593 |
+| Completion tokens | 3,709,936 | 3,381,311 |
 
 Pricing based on GPT-5.2 rates: $1.75/1M input tokens, $0.175/1M cached input tokens, $14.00/1M output tokens.
 
