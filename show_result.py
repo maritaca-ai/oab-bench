@@ -79,7 +79,7 @@ def calculate_token_usage_single(df_all, model_list, bench_name: str):
         df_judge_usage = df_judge_usage[df_judge_usage["model"].isin(model_list)]
     df_judge_usage = (
         df_judge_usage.set_index(
-            ["model", "judge", "answer_id", "turn"], verify_integrity=True
+            ["model", "judge", "answer_id", "turn"]
         )[
             # Flatten judge_usage so later joins/sums work on columns
             "judge_usage"
@@ -100,7 +100,7 @@ def calculate_token_usage_single(df_all, model_list, bench_name: str):
             ]
         )
         # Set index for joining
-        .set_index(["model", "answer_id"], verify_integrity=True)["choices"]
+        .set_index(["model", "answer_id"])["choices"]
         # Take the first choice and flatten usage for every turn
         .map(
             lambda x: [
@@ -179,7 +179,7 @@ def display_result_single(args):
         df_all = pd.concat([df_all, pd.DataFrame(new_cols, index=df_all.index)], axis=1)
         
         # group by model to have both overall and individual questions
-        df_all = df_all.groupby(['model'], as_index=False).agg(agg_dict)
+        df_all = df_all.groupby(['model'], as_index=False).agg(agg_dict).copy()
         df_all["turn"] = 1
 
         # calculate and display means by model, separated by exam
@@ -256,7 +256,8 @@ def display_result_single(args):
                 "answer/completion_tokens_details/reasoning_tokens",
                 "answer/prompt_tokens_details/cached_tokens",
             ]
-            df_usage_pretty = df_token_usage.set_index("model", verify_integrity=True)
+            df_usage_pretty = df_token_usage.set_index("model")
+            assert df_usage_pretty.index.is_unique
             df_usage_pretty = (
                 df_usage_pretty.loc[
                     :, df_usage_pretty.columns.isin(main_token_usage_cols)
@@ -284,7 +285,7 @@ def display_result_single(args):
         token_usage_for_model = {}
         if not df_token_usage.empty:
             token_usage_for_model = (
-                df_token_usage.set_index(["model", "judge"], verify_integrity=True)
+                df_token_usage.set_index(["model", "judge"])
                 .to_dict("index")
                 .get((args.wandb_model_id, args.judge_model), {})
             )
