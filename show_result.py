@@ -169,12 +169,14 @@ def display_result_single(args):
         
         # add columns for each individual question
         question_ids = df_all['question_id'].unique()
+        new_cols = {}
         for qid in question_ids:
-            df_all[f'q{qid}_score'] = df_all.apply(
-                lambda row: row['score'] if row['question_id'] == qid else 0,
+            new_cols[f'q{qid}_score'] = df_all.apply(
+                lambda row, q=qid: row['score'] if row['question_id'] == q else 0,
                 axis=1
             )
             agg_dict[f'q{qid}_score'] = 'sum'
+        df_all = pd.concat([df_all, pd.DataFrame(new_cols, index=df_all.index)], axis=1)
         
         # group by model to have both overall and individual questions
         df_all = df_all.groupby(['model'], as_index=False).agg(agg_dict)
