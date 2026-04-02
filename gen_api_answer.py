@@ -9,6 +9,7 @@ import os
 import time
 import concurrent.futures
 
+import httpx
 import shortuuid
 import tqdm
 from openai import OpenAI
@@ -17,6 +18,7 @@ from common import (
     load_questions,
     temperature_config,
     chat_completion_openai,
+    API_TIMEOUT_OUTPUT,
 )
 from conversation import get_conv_template as get_conversation_template
 
@@ -37,6 +39,7 @@ def get_answer(
     else:
         temperature = 0.7
 
+    sample_timed_out = False
     choices = []
     for i in range(num_choices):
         conv = get_conversation_template("chatgpt")
@@ -55,8 +58,10 @@ def get_answer(
                 api_dict["api_key"] = api_key
             if api_base is not None:
                 api_dict["api_base"] = api_base
-                
+
             content, usage = chat_completion_openai(model, conv, temperature, max_tokens, api_dict, client, reasoning_effort)
+            if content == API_TIMEOUT_OUTPUT:
+                sample_timed_out = True
             conv.update_last_message(content)
             turns.append({"content": content, "usage": usage})
 
@@ -74,6 +79,8 @@ def get_answer(
     os.makedirs(os.path.dirname(answer_file), exist_ok=True)
     with open(answer_file, "a", encoding="utf-8") as fout:
         fout.write(json.dumps(ans, ensure_ascii=False) + "\n")
+
+    return sample_timed_out
 
 
 def reorg_answer_file(answer_file):
@@ -136,9 +143,16 @@ if __name__ == "__main__":
         choices=["none", "minimal", "low", "medium", "high", "xhigh"],
         help="Optional reasoning effort level for the model",
     )
+    parser.add_argument(
+        "--request-timeout",
+        type=int,
+        default=600,
+        help="Per-request timeout in seconds for OpenAI API calls (default: 600).",
+    )
     args = parser.parse_args()
 
-    openai_client = OpenAI(api_key=args.api_key, base_url=args.api_base) if args.api_key else OpenAI(base_url=args.api_base) if args.api_base else OpenAI()
+    request_timeout = httpx.Timeout(args.request_timeout)
+    openai_client = OpenAI(api_key=args.api_key, base_url=args.api_base, timeout=request_timeout) if args.api_key else OpenAI(base_url=args.api_base, timeout=request_timeout) if args.api_base else OpenAI(timeout=request_timeout)
 
     question_file = f"data/{args.bench_name}/question.jsonl"
     questions = load_questions(question_file, args.question_begin, args.question_end)
@@ -153,6 +167,9 @@ if __name__ == "__main__":
     else:
         answer_file = f"data/{args.bench_name}/model_answer/{args.run_id}.jsonl"
     print(f"Output to {answer_file}")
+
+    timeout_count = 0
+    total_count = len(questions)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.parallel) as executor:
         futures = []
@@ -174,6 +191,20 @@ if __name__ == "__main__":
         for future in tqdm.tqdm(
             concurrent.futures.as_completed(futures), total=len(futures)
         ):
-            future.result()
+            sample_timed_out = future.result()
+            if sample_timed_out:
+                timeout_count += 1
+
+    if total_count > 0:
+        pct = 100.0 * timeout_count / total_count
+        print(f"TIMEOUT_STATS: {timeout_count}/{total_count} samples timed out ({pct:.1f}%)")
+
+        try:
+            import wandb
+            if wandb.run is not None:
+                wandb.run.summary["timeout_count"] = timeout_count
+                wandb.run.summary["timeout_percentage"] = pct
+        except ImportError:
+            pass
 
     reorg_answer_file(answer_file)
