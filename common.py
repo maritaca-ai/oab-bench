@@ -23,6 +23,7 @@ from conversation import get_conv_template as get_conversation_template
 API_MAX_RETRY = 16
 API_RETRY_SLEEP = 10
 API_ERROR_OUTPUT = "$ERROR$"
+API_TIMEOUT_OUTPUT = "$TIMEOUT$"
 
 TIE_DELTA = 0.1
 
@@ -592,6 +593,7 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
             if "api_key" in api_dict:
                 client.api_key = api_dict["api_key"]
 
+    all_timeouts = True
     for _ in range(API_MAX_RETRY):
         try:
             messages = conv.to_openai_api_messages()
@@ -626,10 +628,16 @@ def chat_completion_openai(model, conv, temperature, max_tokens, api_dict=None, 
             elif usage_info is not None and not isinstance(usage_info, dict):
                 usage_info = dict(usage_info)
             return response.choices[0].message.content, usage_info
+        except openai.APITimeoutError as e:
+            print(type(e), e)
+            time.sleep(API_RETRY_SLEEP)
         except openai.OpenAIError as e:
+            all_timeouts = False
             print(type(e), e)
             time.sleep(API_RETRY_SLEEP)
 
+    if all_timeouts:
+        return API_TIMEOUT_OUTPUT, None
     return API_ERROR_OUTPUT, None
 
 
